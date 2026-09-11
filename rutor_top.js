@@ -19,14 +19,10 @@
         'Аниме'
     ];
 
-    // возможные прокси (попробует по очереди)
     var PROXIES = [
-      u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
-      u => 'https://cors-anywhere.herokuapp.com/' + u,          // часто мёртвый
-      u => 'https://thingproxy.freeboard.io/fetch/' + u,
-      u => 'https://yacdn.org/proxy/' + u
+       function(url) { return 'https://cors-proxy.gderganov.workers.dev/?url=' + encodeURIComponent(url); }
     ];
-
+    
     var network = new Lampa.Reguest();
     var cache = Lampa.Storage.get(CACHE_KEY, {});
 
