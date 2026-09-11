@@ -141,11 +141,12 @@
 
         var title = cleanTitle(torrentName);
         var year = getYear(torrentName);
-
+        var lang = Lampa.Storage.get('tmdb_lang', 'ru') || 'ru';
+        
         log.debug('TMDB search', {
             title: title,
             year: year,
-            lang: Lampa.Storage.get('tmdb_lang', 'ru') || 'ru',
+            lang: lang,
             raw: torrentName
         });
         
@@ -156,11 +157,14 @@
         }
         
         var q = encodeURIComponent(title);
-        var lang = Lampa.Storage.get('tmdb_lang', 'ru') || 'ru';
+
+        var isSeries = /\[S\d|\[\d{1,2}x\d|сезон|season|сериал/i.test(torrentName);
+        var endpoint = isSeries ? 'search/tv' : 'search/movie';
+        var yearParam = isSeries ? 'first_air_date_year' : 'year';
         
         var apiUrl = Lampa.TMDB.api(
-            'search/movie?query=' + q +
-            (year ? '&year=' + year : '') +
+            endpoint + '?query=' + q +
+            (year ? '&' + yearParam + '=' + year : '') +
             '&language=' + lang +
             '&api_key=' + Lampa.TMDB.key()
         );
@@ -173,9 +177,15 @@
         
                 if (card) {
                     card.source = SOURCE;
-                    card.media_type = 'movie';
-                    card.title = card.title || card.name;
-                    card.release_date = card.release_date || card.first_air_date;
+                    card.media_type = isSeries ? 'tv' : 'movie';
+                
+                    if (isSeries) {
+                        card.name = card.name || card.title;
+                        card.first_air_date = card.first_air_date || card.release_date;
+                    } else {
+                        card.title = card.title || card.name;
+                        card.release_date = card.release_date || card.first_air_date;
+                    }
                 }
             }
         
