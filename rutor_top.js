@@ -21,9 +21,10 @@
 
     // возможные прокси (попробует по очереди)
     var PROXIES = [
-        function (url) { return 'https://corsproxy.io/?' + encodeURIComponent(url); },
-        function (url) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url); },
-        function (url) { return url; } // прямой (на случай если CORS уже ок)
+      u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
+      u => 'https://cors-anywhere.herokuapp.com/' + u,          // часто мёртвый
+      u => 'https://thingproxy.freeboard.io/fetch/' + u,
+      u => 'https://yacdn.org/proxy/' + u
     ];
 
     var network = new Lampa.Reguest();
