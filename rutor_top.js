@@ -7,7 +7,7 @@
     var SOURCE = 'rutor_top';
     var BASE = 'http://rutor.info';
     var CACHE_KEY = 'rutor_top_tmdb_cache';
-    var CACHE_LIFE = 1000 * 60 * 60 * 24 * 7; // 7 дней
+    var CACHE_LIFE = 1000 * 60 * 60 * 24 * 7;
     var NEEDED = [
         'Зарубежные фильмы',
         'Наши фильмы',
@@ -19,6 +19,13 @@
         'Аниме'
     ];
 
+    // возможные прокси (попробует по очереди)
+    var PROXIES = [
+        function (url) { return 'https://corsproxy.io/?' + encodeURIComponent(url); },
+        function (url) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url); },
+        function (url) { return url; } // прямой (на случай если CORS уже ок)
+    ];
+
     var network = new Lampa.Reguest();
     var cache = Lampa.Storage.get(CACHE_KEY, {});
 
@@ -26,22 +33,76 @@
         Lampa.Storage.set(CACHE_KEY, cache);
     }
 
+    // чистим название: всё после первого технического маркера — отбрасываем
     function cleanTitle(name) {
-        return name
+        var markers = [
+            'WEB-DLRip-AVC', 'WEBRip-AVC', 'WEB-DLRip', 'WEBRip', 'WEB-DL',
+            'BDRip', 'HDRip', 'DVDRip', 'BDRemux', 'Remux', 'HDTVRip', 'HDTV',
+            '720p', '1080p', '2160p', '4K', 'UHD', 'HDR10', 'HDR', 'HEVC', 'x264', 'x265', 'AVC',
+            'RePack', 'Repack', 'by ', 'от ', '|', '[S0', '[S1', '[S2', '[S3', '[S4', '[S5',
+            'LostFilm', 'NewStudio', 'HDRezka', 'Кравец', 'DoMiNo', 'селезень'
+        ];
+
+        var cutPos = name.length;
+        markers.forEach(function (m) {
+            var idx = name.toLowerCase().indexOf(m.toLowerCase());
+            if (idx !== -1 && idx < cutPos) cutPos = idx;
+        });
+
+        var cleaned = name.slice(0, cutPos)
             .replace(/\[.*?\]/g, '')
             .replace(/\(.*?\)/g, '')
-            .replace(/\b(720p|1080p|2160p|4K|UHD|HDR|HEVC|x264|x265|WEB-DL|BDRip|HDRip|DVDRip|Remux|RePack|by|от)\b/gi, '')
+            .replace(/\/.*$/, '')          // убираем английское название после /
             .replace(/\s+/g, ' ')
             .trim();
+
+        // если осталось пусто — берём первую часть до /
+        if (!cleaned) {
+            cleaned = name.split('/')[0].replace(/\[.*?\]/g, '').trim();
+        }
+
+        return cleaned;
     }
 
     function getYear(name) {
-        var m = name.match(/\((\d{4})\)/);
+        // (2022-2024) или (2022)
+        var m = name.match(/\((\d{4})(?:\s*[-–]\s*\d{4})?\)/);
         return m ? m[1] : '';
     }
 
+    function fetchHtml(url, success, error) {
+        var i = 0;
+
+        function tryNext() {
+            if (i >= PROXIES.length) {
+                console.log('[Rutor] все прокси провалились для', url);
+                return error && error('CORS / proxy fail');
+            }
+
+            var proxied = PROXIES[i++](url);
+            console.log('[Rutor] запрос:', proxied);
+
+            network.silent(proxied, function (html) {
+                if (typeof html === 'string' && html.length > 500) {
+                    success(html);
+                } else {
+                    console.log('[Rutor] пустой/короткий ответ, пробуем следующий прокси');
+                    tryNext();
+                }
+            }, function (err) {
+                console.log('[Rutor] ошибка прокси:', err);
+                tryNext();
+            }, false, {
+                dataType: 'text',
+                timeout: 10000
+            });
+        }
+
+        tryNext();
+    }
+
     function searchTMDB(torrentName, callback) {
-        var key = torrentName.toLowerCase().slice(0, 80);
+        var key = torrentName.toLowerCase().slice(0, 100);
         var now = Date.now();
 
         if (cache[key] && (now - cache[key].ts) < CACHE_LIFE) {
@@ -50,8 +111,22 @@
 
         var title = cleanTitle(torrentName);
         var year = getYear(torrentName);
-        var query = encodeURIComponent(title);
-        var url = Lampa.TMDB.api('search/multi?query=' + query + (year ? '&year=' + year : '') + '&language=' + (Lampa.Storage.get('tmdb_lang', 'ru') || 'ru') + '&api_key=' + Lampa.TMDB.key());
+
+        console.log('[Rutor TMDB] title:', title, '| year:', year, '| raw:', torrentName);
+
+        if (!title) {
+            cache[key] = { ts: now, card: null };
+            saveCache();
+            return callback(null);
+        }
+
+        var q = encodeURIComponent(title);
+        var url = Lampa.TMDB.api(
+            'search/multi?query=' + q +
+            (year ? '&year=' + year : '') +
+            '&language=' + (Lampa.Storage.get('tmdb_lang', 'ru') || 'ru') +
+            '&api_key=' + Lampa.TMDB.key()
+        );
 
         network.silent(url, function (json) {
             var card = null;
@@ -73,11 +148,10 @@
             }
 
             cache[key] = { ts: now, card: card };
-            // ограничиваем размер кеша
             var keys = Object.keys(cache);
-            if (keys.length > 500) {
+            if (keys.length > 600) {
                 keys.sort(function (a, b) { return cache[a].ts - cache[b].ts; });
-                keys.slice(0, keys.length - 400).forEach(function (k) { delete cache[k]; });
+                keys.slice(0, keys.length - 500).forEach(function (k) { delete cache[k]; });
             }
             saveCache();
             callback(card);
@@ -89,7 +163,7 @@
     }
 
     function parseTorrents(html, limit) {
-        limit = limit || 20;
+        limit = limit || 30;
         var list = [];
         var rowRegex = /<tr class="(?:gai|tum)">([\s\S]*?)<\/tr>/g;
         var m, i = 0;
@@ -99,18 +173,11 @@
             var titleM = row.match(/<a href="(\/torrent\/[^"]+)">([^<]+)<\/a>/);
             if (!titleM) continue;
 
-            var link = BASE + titleM[1];
-            var name = titleM[2].trim();
-            var seedM = row.match(/arrowup\.gif[^>]*>[\s\u00a0]*(\d+)/);
-            var leechM = row.match(/arrowdown\.gif[^>]*>[\s\u00a0]*(?:<span[^>]*>)?[\s\u00a0]*(\d+)/);
-            var sizeM = row.match(/([\d.,]+\s*(?:GB|MB|TB|KB))/i);
-
             list.push({
-                title: name,
-                url: link,
-                seeds: seedM ? seedM[1] : '0',
-                leeches: leechM ? leechM[1] : '0',
-                size: sizeM ? sizeM[1] : ''
+                title: titleM[2].trim(),
+                url: BASE + titleM[1],
+                seeds: (row.match(/arrowup\.gif[^>]*>[\s\u00a0]*(\d+)/) || [])[1] || '0',
+                leeches: (row.match(/arrowdown\.gif[^>]*>[\s\u00a0]*(?:<span[^>]*>)?[\s\u00a0]*(\d+)/) || [])[1] || '0'
             });
             i++;
         }
@@ -127,13 +194,9 @@
             if (NEEDED.indexOf(name) === -1) continue;
 
             var href = m[1].startsWith('http') ? m[1] : BASE + m[1];
-            var torrents = parseTorrents(m[3], 10);
+            var torrents = parseTorrents(m[3], 12);
 
-            cats.push({
-                title: name,
-                url: href,
-                torrents: torrents
-            });
+            cats.push({ title: name, url: href, torrents: torrents });
         }
         return cats;
     }
@@ -150,24 +213,28 @@
                     results[idx] = card;
                 }
                 left--;
-                if (left <= 0) {
-                    done(results.filter(Boolean));
-                }
+                if (left <= 0) done(results.filter(Boolean));
             });
         });
     }
 
-    // === Source API ===
     var Api = {
         network: network,
 
         category: function (params, onSuccess, onError) {
-            network.silent(BASE + '/top', function (html) {
+            fetchHtml(BASE + '/top', function (html) {
                 var cats = parseCategories(html);
-                var parts = [];
-                
-                cats.forEach(function (cat) {
-                    parts.push(function (call) {
+
+                console.log('[Rutor] === Категории топа ===');
+                cats.forEach(function (c) {
+                    console.log('▶', c.title, '(' + c.torrents.length + ')');
+                    c.torrents.forEach(function (t, i) {
+                        console.log('  ', (i + 1) + '.', t.title);
+                    });
+                });
+
+                var parts = cats.map(function (cat) {
+                    return function (call) {
                         resolveCards(cat.torrents, function (cards) {
                             call({
                                 title: cat.title,
@@ -179,34 +246,37 @@
                                 source: SOURCE
                             });
                         });
-                    });
+                    };
                 });
 
                 Lampa.Api.partNext(parts, 3, onSuccess, onError);
-            }, onError, false, { dataType: 'text', cache: { life: 60 } });
+            }, onError);
         },
 
         list: function (params, onSuccess, onError) {
             var url = params.url || (BASE + '/top');
-            var page = params.page || 1;
 
-            network.silent(url, function (html) {
-                // для страницы категории берём все строки
+            fetchHtml(url, function (html) {
                 var torrents = parseTorrents(html, 40);
+
+                console.log('[Rutor] === Список категории ===', url);
+                torrents.forEach(function (t, i) {
+                    console.log((i + 1) + '.', t.title);
+                });
+
                 resolveCards(torrents, function (cards) {
                     onSuccess({
                         results: cards,
-                        page: page,
-                        total_pages: page, // rutor топ не пагинируется просто
+                        page: params.page || 1,
+                        total_pages: 1,
                         total_results: cards.length,
                         source: SOURCE
                     });
                 });
-            }, onError, false, { dataType: 'text', cache: { life: 30 } });
+            }, onError);
         },
 
         full: function (params, onSuccess, onError) {
-            // делегируем в TMDB
             Lampa.Api.sources.tmdb.full(params, onSuccess, onError);
         },
 
@@ -216,16 +286,12 @@
     };
 
     function addMenu() {
-        var item = $('<li class="menu__item selector" data-action="rutor_top">' +
-            '<div class="menu__ico">' +
-            '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
-            '</div>' +
-            '<div class="menu__text">Rutor</div>' +
-            '</li>');
+        var item = $('<li class="menu__item selector">' +
+            '<div class="menu__ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zm0 9l-10 5 10 5 10-5-10-5z"/></svg></div>' +
+            '<div class="menu__text">Rutor</div></li>');
 
         item.on('hover:enter', function () {
             Lampa.Activity.push({
-                url: '',
                 title: 'Rutor Топ',
                 component: 'category',
                 source: SOURCE,
@@ -238,17 +304,12 @@
 
     function start() {
         Lampa.Api.sources[SOURCE] = Api;
-
         if (window.appready) addMenu();
-        else {
-            Lampa.Listener.follow('app', function (e) {
-                if (e.type === 'ready') addMenu();
-            });
-        }
+        else Lampa.Listener.follow('app', function (e) {
+            if (e.type === 'ready') addMenu();
+        });
     }
 
     if (window.Lampa) start();
-    else {
-        window.addEventListener('appready', start);
-    }
+    else window.addEventListener('appready', start);
 })();
