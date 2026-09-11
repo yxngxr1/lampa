@@ -80,31 +80,22 @@
 
     // ========== Title cleaner ==========
     function cleanTitle(name) {
-        var markers = [
-            'WEB-DLRip-AVC', 'WEBRip-AVC', 'WEB-DLRip', 'WEBRip', 'WEB-DL',
-            'BDRip', 'HDRip', 'DVDRip', 'BDRemux', 'Remux', 'HDTVRip', 'HDTV',
-            '720p', '1080p', '2160p', '4K', 'UHD', 'HDR10', 'HDR', 'HEVC', 'x264', 'x265', 'AVC',
-            'RePack', 'Repack', 'by ', 'от ', '|',
-            '[S0', '[S1', '[S2', '[S3', '[S4', '[S5', '[S6',
-            'LostFilm', 'NewStudio', 'HDRezka', 'Кравец', 'DoMiNo', 'селезень', 'New-Team', 'WinMedia'
-        ];
-
-        var cutPos = name.length;
-        var lower = name.toLowerCase();
-        markers.forEach(function (m) {
-            var idx = lower.indexOf(m.toLowerCase());
-            if (idx !== -1 && idx < cutPos) cutPos = idx;
-        });
-
-        var cleaned = name.slice(0, cutPos)
-            .replace(/\[.*?\]/g, '')
-            .replace(/\(.*?\)/g, '')
-            .replace(/\/.*$/, '')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        if (!cleaned) cleaned = name.split('/')[0].replace(/\[.*?\]/g, '').trim();
-        return cleaned;
+        // 1. Обрезаем всё после года (год всегда в скобках)
+        var yearMatch = name.match(/\((\d{4})(?:\s*[-–]\s*\d{4})?\)/);
+        var titlePart = yearMatch ? name.slice(0, yearMatch.index) : name;
+    
+        // 2. Убираем все блоки в [] (сезоны, эпизоды и т.д.)
+        titlePart = titlePart.replace(/\[.*?\]/g, '');
+    
+        // 3. Убираем лишние пробелы и обрезаем
+        titlePart = titlePart.replace(/\s+/g, ' ').trim();
+    
+        // 4. Если после очистки пусто — fallback
+        if (!titlePart) {
+            titlePart = name.split(/[\(\[]/)[0].trim();
+        }
+    
+        return titlePart;
     }
 
     function getYear(name) {
