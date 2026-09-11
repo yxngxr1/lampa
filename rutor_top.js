@@ -87,12 +87,15 @@
         // 2. Убираем все блоки в [] (сезоны, эпизоды и т.д.)
         titlePart = titlePart.replace(/\[.*?\]/g, '');
     
-        // 3. Убираем лишние пробелы и обрезаем
+        // 3. Оставляем ТОЛЬКО русское название (всё, что до слэша "/")
+        titlePart = titlePart.split('/')[0];
+    
+        // 4. Убираем лишние пробелы и обрезаем
         titlePart = titlePart.replace(/\s+/g, ' ').trim();
     
-        // 4. Если после очистки пусто — fallback
+        // 5. Если после очистки пусто — fallback
         if (!titlePart) {
-            titlePart = name.split(/[\(\[]/)[0].trim();
+            titlePart = name.split(/[\(\[]/)[0].split('/')[0].trim();
         }
     
         return titlePart;
@@ -260,7 +263,12 @@
                 var cats = parseCategories(html);
 
                 log.group('Категории топа (' + cats.length + ')', cats.map(function (c) {
-                    return { title: c.title, count: c.torrents.length, url: c.url };
+                    return { 
+                        title: c.title, 
+                        count: c.torrents.length, 
+                        url: c.url,
+                        torrents: c.torrents.map(function (t) { return t.title; })
+                    };
                 }));
 
                 cats.forEach(function (cat) {
