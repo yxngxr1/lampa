@@ -165,7 +165,7 @@
             network.silent(BASE + '/top', function (html) {
                 var cats = parseCategories(html);
                 var parts = [];
-
+                
                 cats.forEach(function (cat) {
                     parts.push(function (call) {
                         resolveCards(cat.torrents, function (cards) {
@@ -183,7 +183,7 @@
                 });
 
                 Lampa.Api.partNext(parts, 3, onSuccess, onError);
-            }, onError, false, { cache: { life: 60 } });
+            }, onError, false, { dataType: 'text', cache: { life: 60 } });
         },
 
         list: function (params, onSuccess, onError) {
@@ -202,7 +202,7 @@
                         source: SOURCE
                     });
                 });
-            }, onError, false, { cache: { life: 30 } });
+            }, onError, false, { dataType: 'text', cache: { life: 30 } });
         },
 
         full: function (params, onSuccess, onError) {
