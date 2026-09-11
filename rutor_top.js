@@ -142,7 +142,7 @@
         var title = cleanTitle(torrentName);
         var year = getYear(torrentName);
         var lang = Lampa.Storage.get('tmdb_lang', 'ru') || 'ru';
-        var isSeries = /\[S\d|\[\d{1,2}x\d|сезон|season|сериал/i.test(torrentName);
+        var isSeries = /\[[^\]]*\d[^\]]*\]/.test(torrentName);
         var endpoint = isSeries ? 'search/tv' : 'search/movie';
         var yearParam = isSeries ? 'first_air_date_year' : 'year';
         
@@ -483,6 +483,7 @@
                                 onSelect: function () {
                                     Lampa.Modal.close();
                                     Lampa.Storage.set('rutor_clear_cache', false);
+                                    Lampa.Controller.toggle('settings');
                                 }
                             },
                             {
@@ -494,12 +495,14 @@
                                     Lampa.Storage.set('rutor_clear_cache', false);
                                     Lampa.Noty.show('Кеш очищен');
                                     log.info('кеш очищен вручную');
+                                    Lampa.Controller.toggle('settings');
                                 }
                             }
                         ],
                         onBack: function () {
                             Lampa.Modal.close();
                             Lampa.Storage.set('rutor_clear_cache', false);
+                            Lampa.Controller.toggle('settings');
                         }
                     });
                 }
