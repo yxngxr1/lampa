@@ -9,23 +9,26 @@
     var CACHE_KEY = 'rutor_top_tmdb_cache';
     var CACHE_LIFE = 1000 * 60 * 60 * 24 * 7;
 
-    var NEEDED = [
-        'Зарубежные фильмы',
-        'Наши фильмы',
-        'Зарубежные сериалы',
-        'Наши сериалы',
-        'Научно-популярные фильмы',
-        'Телевизор',
-        'Мультипликация',
-        'Аниме'
-    ];
+    // ID категорий + сортировка по сидам (/browse/0/{id}/0/2)
+    var CAT_MAP = {
+        'Зарубежные фильмы':        BASE + '/browse/0/1/0/2',
+        'Наши фильмы':              BASE + '/browse/0/5/0/2',
+        'Зарубежные сериалы':       BASE + '/browse/0/4/0/2',
+        'Наши сериалы':             BASE + '/browse/0/16/0/2',
+        'Научно-популярные фильмы': BASE + '/browse/0/12/0/2',
+        'Телевизор':                BASE + '/browse/0/6/0/2',
+        'Мультипликация':           BASE + '/browse/0/7/0/2',
+        'Аниме':                    BASE + '/browse/0/10/0/2'
+    };
+
+    var NEEDED = Object.keys(CAT_MAP);
 
     var network = new Lampa.Reguest();
     var cache = Lampa.Storage.get(CACHE_KEY, {});
 
     // ========== Settings ==========
     function getProxy() {
-        return Lampa.Storage.get('rutor_proxy', 'https://cors-proxy.gderganov.workers.dev/?url=');
+        return Lampa.Storage.get('rutor_proxy', 'https://cors-proxy.gderganov.workers.dev/?url=') || '';
     }
     function getLimit() {
         var v = parseInt(Lampa.Storage.get('rutor_limit', '10'), 10);
@@ -34,26 +37,34 @@
         return v;
     }
     function getCacheEnabled() {
-        return Lampa.Storage.get('rutor_cache', 'true') === 'true' || Lampa.Storage.get('rutor_cache', true) === true;
+        var v = Lampa.Storage.get('rutor_cache', true);
+        return v === true || v === 'true';
     }
     function getLogLevel() {
-        return Lampa.Storage.get('rutor_log', 'info'); // off | error | info | debug
+        return Lampa.Storage.get('rutor_log', 'info') || 'info';
     }
 
-    // ========== Logger ==========
+    // ========== Logger (всегда в console, уровень из настроек) ==========
     var log = {
         _ok: function (lvl) {
             var order = { off: 0, error: 1, info: 2, debug: 3 };
-            return (order[getLogLevel()] || 0) >= (order[lvl] || 0);
+            var cur = order[getLogLevel()] || 0;
+            return cur >= (order[lvl] || 0);
         },
         info: function () {
-            if (this._ok('info')) console.log.apply(console, ['[Rutor]'].concat([].slice.call(arguments)));
+            if (this._ok('info')) {
+                console.log.apply(console, ['[Rutor]'].concat(Array.prototype.slice.call(arguments)));
+            }
         },
         debug: function () {
-            if (this._ok('debug')) console.log.apply(console, ['[Rutor:debug]'].concat([].slice.call(arguments)));
+            if (this._ok('debug')) {
+                console.log.apply(console, ['[Rutor:debug]'].concat(Array.prototype.slice.call(arguments)));
+            }
         },
         error: function () {
-            if (this._ok('error')) console.error.apply(console, ['[Rutor:error]'].concat([].slice.call(arguments)));
+            if (this._ok('error')) {
+                console.error.apply(console, ['[Rutor:error]'].concat(Array.prototype.slice.call(arguments)));
+            }
         },
         group: function (title, obj) {
             if (!this._ok('info')) return;
@@ -219,7 +230,8 @@
             var name = m[2];
             if (NEEDED.indexOf(name) === -1) continue;
 
-            var href = m[1].startsWith('http') ? m[1] : BASE + m[1];
+            // Используем фиксированный URL с сортировкой по сидам
+            var href = CAT_MAP[name] || (m[1].startsWith('http') ? m[1] : BASE + m[1]);
             cats.push({
                 title: name,
                 url: href,
@@ -250,7 +262,6 @@
     var Api = {
         network: network,
 
-        // Важно: возвращаем функцию loadPart
         category: function (params, onSuccess, onError) {
             var partsData = [];
 
@@ -258,7 +269,7 @@
                 var cats = parseCategories(html);
 
                 log.group('Категории топа (' + cats.length + ')', cats.map(function (c) {
-                    return { title: c.title, count: c.torrents.length, url: c.url, torrents: c.torrents.map(function (t) { return t.title; }) };
+                    return { title: c.title, count: c.torrents.length, url: c.url };
                 }));
 
                 cats.forEach(function (cat) {
@@ -278,19 +289,14 @@
                     });
                 });
 
-                // progressive load
                 function loadPart(partLoaded, partEmpty) {
                     Lampa.Api.partNext(partsData, 4, partLoaded, partEmpty || onError);
                 }
 
-                // первый вызов
                 loadPart(onSuccess, onError);
-
-                // сохраняем для onNext
                 Api._next = loadPart;
             }, onError);
 
-            // пока грузим html — отдаём заглушку next
             return function (resolve, reject) {
                 if (Api._next) Api._next(resolve, reject);
                 else reject && reject();
@@ -303,7 +309,7 @@
 
             fetchHtml(url, function (html) {
                 var torrents = parseTorrents(html, 40);
-                log.group('Список категории', { url: url, count: torrents.length, items: torrents.map(function (t) { return t.title; }) });
+                log.group('Список категории', { url: url, count: torrents.length });
 
                 resolveCards(torrents, function (cards) {
                     onSuccess({
@@ -357,17 +363,23 @@
             icon: HAMMER_SICKLE
         });
 
+        // Proxy как select — избегаем бага с input + длинным default
         Lampa.SettingsApi.addParam({
             component: 'rutor_top',
             param: {
                 name: 'rutor_proxy',
-                type: 'input',
-                default: 'https://cors-proxy.gderganov.workers.dev/?url=',
-                placeholder: 'https://your-proxy/?url='
+                type: 'select',
+                values: {
+                    'https://cors-proxy.gderganov.workers.dev/?url=': 'gderganov (по умолчанию)',
+                    'https://corsproxy.io/?': 'corsproxy.io',
+                    'https://api.allorigins.win/raw?url=': 'allorigins',
+                    '': 'Без прокси'
+                },
+                default: 'https://cors-proxy.gderganov.workers.dev/?url='
             },
             field: {
                 name: 'CORS Proxy',
-                description: 'Адрес прокси. К URL автоматически добавится encodeURIComponent(целевой_адрес)'
+                description: 'Прокси для запросов к rutor. К URL добавляется encodeURIComponent'
             },
             onChange: function () {
                 Lampa.Noty.show('Прокси сохранён');
@@ -422,7 +434,10 @@
             },
             field: {
                 name: 'Логирование',
-                description: 'Уровень логов в консоли'
+                description: 'Уровень логов в консоли разработчика (F12 → Console)'
+            },
+            onChange: function (v) {
+                log.info('уровень логов изменён на', v);
             }
         });
 
