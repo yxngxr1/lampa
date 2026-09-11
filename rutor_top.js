@@ -142,12 +142,17 @@
         var title = cleanTitle(torrentName);
         var year = getYear(torrentName);
         var lang = Lampa.Storage.get('tmdb_lang', 'ru') || 'ru';
+        var isSeries = /\[S\d|\[\d{1,2}x\d|сезон|season|сериал/i.test(torrentName);
+        var endpoint = isSeries ? 'search/tv' : 'search/movie';
+        var yearParam = isSeries ? 'first_air_date_year' : 'year';
         
         log.debug('TMDB search', {
             title: title,
             year: year,
             lang: lang,
-            raw: torrentName
+            raw: torrentName,
+            isSeries: isSeries,
+            endpoint: endpoint
         });
         
         if (!title) {
@@ -157,10 +162,6 @@
         }
         
         var q = encodeURIComponent(title);
-
-        var isSeries = /\[S\d|\[\d{1,2}x\d|сезон|season|сериал/i.test(torrentName);
-        var endpoint = isSeries ? 'search/tv' : 'search/movie';
-        var yearParam = isSeries ? 'first_air_date_year' : 'year';
         
         var apiUrl = Lampa.TMDB.api(
             endpoint + '?query=' + q +
