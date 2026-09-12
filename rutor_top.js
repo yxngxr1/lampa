@@ -8,6 +8,7 @@
     var CACHE_KEY = 'rutor_top_tmdb_cache';
     var CACHE_LIFE = 1000 * 60 * 60 * 24 * 7;
 
+    // ID категорий + сортировка по сидам (/browse/0/{id}/0/2)
     var CAT_MAP = {
         'Зарубежные фильмы':        BASE + '/browse/0/1/0/2',
         'Наши фильмы':              BASE + '/browse/0/5/0/2',
@@ -86,14 +87,24 @@
 
     // ========== Title cleaner ==========
     function cleanTitle(name) {
+        // 1. Обрезаем всё после года (год всегда в скобках)
         var yearMatch = name.match(/\((\d{4})(?:\s*[-–]\s*\d{4})?\)/);
         var titlePart = yearMatch ? name.slice(0, yearMatch.index) : name;
+    
+        // 2. Убираем все блоки в [] (сезоны, эпизоды и т.д.)
         titlePart = titlePart.replace(/\[.*?\]/g, '');
+    
+        // 3. Оставляем ТОЛЬКО русское название (всё, что до слэша "/")
         titlePart = titlePart.split('/')[0];
+    
+        // 4. Убираем лишние пробелы и обрезаем
         titlePart = titlePart.replace(/\s+/g, ' ').trim();
+    
+        // 5. Если после очистки пусто — fallback
         if (!titlePart) {
             titlePart = name.split(/[\(\[]/)[0].split('/')[0].trim();
         }
+    
         return titlePart;
     }
     function getYear(name) {
@@ -202,7 +213,8 @@
             var sizeM = row.match(/<td align="right">([\d.,]+(?:&nbsp;|\s)*[A-Za-zА-Яа-я]+)<\/td>/);
             var commentsM = row.match(/<td align="right">(\d+)<img[^>]*com\.gif/);
             var seedsM = row.match(/arrowup\.gif[^>]*>[\s\u00a0]*(\d+)/) || row.match(/class="green"[^>]*>[\s\S]*?(\d+)/);
-            var leechesM = row.match(/arrowdown\.gif[^>]*>[\s\u00a0]*(?:<span[^>]*>)?[\s\u00a0]*(\d+)/) || row.match(/class="red"[^>]*>[\s\u00a0]*(\d+)/);
+            // Исправленный парсинг leeches (как в рабочем варианте)
+            var leechesM = row.match(/arrowdown\.gif[^>]*>[^0-9]*([0-9]+)/i);
 
             list.push({
                 title: titleM[2].trim().replace(/&amp;/g, '&').replace(/&#039;/g, "'"),
@@ -225,6 +237,7 @@
         while ((m = catRegex.exec(html)) !== null) {
             var name = m[2];
             if (NEEDED.indexOf(name) === -1) continue;
+            // Используем фиксированный URL с сортировкой по сидам
             var href = CAT_MAP[name] || (m[1].startsWith('http') ? m[1] : BASE + m[1]);
             cats.push({
                 title: name,
@@ -270,7 +283,6 @@
             if (Lampa.Torrent && typeof Lampa.Torrent.start === 'function') {
                 Lampa.Torrent.start(element);
             } else if (Lampa.Torrent && typeof Lampa.Torrent.open === 'function') {
-                // fallback if only open by hash is available — try add first
                 if (Lampa.Torserver && Lampa.Torserver.hash) {
                     Lampa.Torserver.hash({
                         title: item.title,
@@ -299,7 +311,6 @@
         network: network,
         category: function (params, onSuccess, onError) {
             if (getViewMode() === 'table') {
-                // redirect to table component
                 Lampa.Activity.replace({
                     title: 'Rutor Топ',
                     component: 'rutor_table',
@@ -384,10 +395,13 @@
         var html = $('<div class="rutor-table-wrap"></div>');
         var body = $('<div class="rutor-table-body"></div>');
         var last_focus;
+        var items = []; // для удобства навигации
 
-        function buildTable(items, isCategoryView) {
+        function buildTable(data, isCategoryView) {
             body.empty();
-            if (!items || !items.length) {
+            items = [];
+
+            if (!data || !data.length) {
                 body.append('<div class="rutor-empty">Нет раздач</div>');
                 return;
             }
@@ -395,13 +409,15 @@
             if (isCategoryView) {
                 // Full category list — one big table
                 var table = $('<div class="rutor-table"></div>');
-                items.forEach(function (t) {
-                    table.append(makeRow(t));
+                data.forEach(function (t) {
+                    var row = makeRow(t);
+                    table.append(row);
+                    items.push(row);
                 });
                 body.append(table);
             } else {
                 // Top page — groups by category
-                items.forEach(function (cat) {
+                data.forEach(function (cat) {
                     var section = $('<div class="rutor-section"></div>');
                     var head = $('<div class="rutor-section__title selector" tabindex="0">' + cat.title + ' →</div>');
                     head.on('hover:enter', function () {
@@ -414,11 +430,18 @@
                             is_category: true
                         });
                     });
+                    head.on('hover:focus', function () {
+                        last_focus = head;
+                        scroll.update(head, true);
+                    });
                     section.append(head);
+                    items.push(head);
 
                     var table = $('<div class="rutor-table"></div>');
                     (cat.torrents || []).forEach(function (t) {
-                        table.append(makeRow(t));
+                        var row = makeRow(t);
+                        table.append(row);
+                        items.push(row);
                     });
                     section.append(table);
                     body.append(section);
@@ -442,6 +465,7 @@
             });
             row.on('hover:focus', function () {
                 last_focus = row;
+                // скролл только когда элемент у края — стандартное поведение Lampa.Scroll
                 scroll.update(row, true);
             });
             return row;
@@ -470,6 +494,7 @@
         };
 
         this.start = function () {
+            var self = this;
             Lampa.Controller.add('content', {
                 toggle: function () {
                     Lampa.Controller.collectionSet(scroll.render());
@@ -479,13 +504,20 @@
                     if (Navigator.canmove('left')) Navigator.move('left');
                     else Lampa.Controller.toggle('menu');
                 },
-                right: function () { Navigator.move('right'); },
+                right: function () {
+                    Navigator.move('right');
+                },
                 up: function () {
                     if (Navigator.canmove('up')) Navigator.move('up');
                     else Lampa.Controller.toggle('head');
                 },
-                down: function () { Navigator.move('down'); },
-                back: this.activity.backward
+                down: function () {
+                    Navigator.move('down');
+                },
+                back: function () {
+                    // корректный выход назад
+                    self.activity.backward();
+                }
             });
             Lampa.Controller.toggle('content');
         };
@@ -500,6 +532,12 @@
             scroll.destroy();
             html.remove();
         };
+
+        // уменьшаем верхний отступ scroll__content
+        scroll.render().find('.scroll__content').css({
+            paddingTop: '0.6em',
+            paddingBottom: '2em'
+        });
 
         scroll.append(body);
         html.append(scroll.render());
@@ -714,35 +752,35 @@
     function injectCSS() {
         if ($('#rutor-table-css').length) return;
         var css = `
-            .rutor-table-wrap { padding: 1.2em 1.5em; height: 100%; box-sizing: border-box; }
-            .rutor-table-body { padding-bottom: 3em; }
-            .rutor-section { margin-bottom: 2.2em; }
+            .rutor-table-wrap { padding: 0.4em 1.2em 1em; height: 100%; box-sizing: border-box; }
+            .rutor-table-body { padding-bottom: 2.5em; }
+            .rutor-section { margin-bottom: 1.8em; }
             .rutor-section__title {
-                font-size: 1.35em;
+                font-size: 1.3em;
                 font-weight: 600;
                 color: #fff;
-                padding: 0.6em 0.4em;
-                margin-bottom: 0.6em;
-                border-bottom: 2px solid rgba(255,255,255,0.15);
+                padding: 0.55em 0.5em;
+                margin-bottom: 0.5em;
+                border-bottom: 2px solid rgba(255,255,255,0.12);
                 cursor: pointer;
             }
             .rutor-section__title.focus { background: rgba(255,255,255,0.08); border-radius: 0.3em; }
-            .rutor-table { display: flex; flex-direction: column; gap: 0.35em; }
+            .rutor-table { display: flex; flex-direction: column; gap: 0.3em; }
             .rutor-row {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                padding: 0.75em 1em;
+                padding: 0.7em 0.9em;
                 background: rgba(255,255,255,0.04);
-                border-radius: 0.4em;
+                border-radius: 0.35em;
                 gap: 1em;
-                min-height: 3.2em;
+                min-height: 3em;
                 transition: background 0.15s;
             }
             .rutor-row.focus { background: rgba(255,255,255,0.12); }
             .rutor-row__title {
                 flex: 1;
-                font-size: 1.05em;
+                font-size: 1.02em;
                 line-height: 1.35;
                 overflow: hidden;
                 text-overflow: ellipsis;
@@ -753,16 +791,22 @@
             .rutor-row__meta {
                 display: flex;
                 align-items: center;
-                gap: 1.1em;
+                gap: 1em;
                 flex-shrink: 0;
                 font-size: 0.95em;
                 white-space: nowrap;
             }
-            .rutor-meta__comments { opacity: 0.7; min-width: 1.8em; text-align: right; }
-            .rutor-meta__size { min-width: 4.5em; text-align: right; opacity: 0.9; }
+            .rutor-meta__comments { opacity: 0.7; min-width: 1.6em; text-align: right; }
+            .rutor-meta__size { min-width: 4.2em; text-align: right; opacity: 0.9; }
             .rutor-meta__seeds .green { color: #4caf50; }
             .rutor-meta__leeches .red { color: #f44336; }
             .rutor-empty { padding: 2em; text-align: center; opacity: 0.6; font-size: 1.2em; }
+
+            /* уменьшаем дефолтный верхний отступ скролла */
+            .rutor-table-wrap .scroll--mask .scroll__content {
+                padding-top: 0.5em !important;
+                padding-bottom: 2em !important;
+            }
         `;
         $('<style id="rutor-table-css">' + css + '</style>').appendTo('head');
     }
