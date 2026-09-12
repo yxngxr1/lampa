@@ -392,6 +392,7 @@
     // ========== Table Component (minimal mode) ==========
     function createTableComponent(object) {
         var scroll = new Lampa.Scroll({ mask: true, over: true, step: 250 });
+        scroll.render().addClass('rutor-scroll');
         var html = $('<div class="rutor-table-wrap"></div>');
         var body = $('<div class="rutor-table-body"></div>');
         var last_focus;
@@ -492,33 +493,33 @@
                 this.activity.toggle();
             }.bind(this));
         };
-
+        
         this.start = function () {
-            var self = this;
             Lampa.Controller.add('content', {
-                toggle: function () {
+                toggle: () => {
                     Lampa.Controller.collectionSet(scroll.render());
-                    Lampa.Controller.collectionFocus(last_focus || false, scroll.render());
+                    Lampa.Controller.collectionFocus(last_focus || body.find('.selector').eq(0)[0], scroll.render());
                 },
-                left: function () {
+                up: () => {
+                    if (Navigator.canmove('up')) {
+                        Navigator.move('up');
+                    } else {
+                        Lampa.Controller.toggle('head');
+                    }
+                },
+                down: () => {
+                    Navigator.move('down');
+                },
+                left: () => {
                     if (Navigator.canmove('left')) Navigator.move('left');
                     else Lampa.Controller.toggle('menu');
                 },
-                right: function () {
+                right: () => {
                     Navigator.move('right');
                 },
-                up: function () {
-                    if (Navigator.canmove('up')) Navigator.move('up');
-                    else Lampa.Controller.toggle('head');
-                },
-                down: function () {
-                    Navigator.move('down');
-                },
-                back: function () {
-                    // корректный выход назад
-                    self.activity.backward();
-                }
+                back: this.activity.backward
             });
+        
             Lampa.Controller.toggle('content');
         };
 
@@ -541,6 +542,9 @@
 
         scroll.append(body);
         html.append(scroll.render());
+        setTimeout(function () {
+            scroll.resize();
+        }, 100);
     }
 
     // ========== Menu ==========
