@@ -7,9 +7,6 @@
     .rutor-scroll {
       height: 100%;
     }
-    .rutor-table-body {
-      padding: 1em 0;
-    }
     </style>
     `);
   
@@ -674,7 +671,7 @@
             },
             field: {
                 name: 'Режим отображения',
-                description: 'Карточки Lampa — нативные постеры + TMDB. Таблица — компактный список как на сайте.'
+                description: 'Карточки Lampa — нативные постеры + TMDB. Таблица — компактный список торрентов как на сайте.'
             },
             onChange: function (v) {
                 Lampa.Noty.show(v === 'table' ? 'Включён табличный режим' : 'Включён режим карточек');
@@ -766,15 +763,19 @@
         if ($('#rutor-table-css').length) return;
         var css = `
             .rutor-table-wrap { padding: 0 1.2em 1em; height: 100%; box-sizing: border-box; }
-            .rutor-section { margin-bottom: 1.8em; }
+            .rutor-section { margin-bottom: 0.8em; }
             .rutor-section__title {
-                padding: 0.3em 0.5em;
-                margin-bottom: 0.3em;
                 font-size: 1.3em;
                 font-weight: 600;
                 color: #fff;
+                padding: 0.7em 0.9em;   /* как у row */
+                min-height: 3em;        /* как у row */
+                margin-bottom: 0.3em;
                 border-bottom: 2px solid rgba(255,255,255,0.12);
                 cursor: pointer;
+                display: flex;
+                align-items: center;
+                box-sizing: border-box;
             }
             .rutor-section__title.focus { background: rgba(255,255,255,0.08); border-radius: 0.3em; }
             .rutor-table { display: flex; flex-direction: column; gap: 0.3em; }
