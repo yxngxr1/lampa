@@ -500,7 +500,6 @@
                     data = parseCategories(html);
                 }
                 buildTable(data, isCategory);
-                scroll.resize();
                 this.activity.loader(false);
                 this.activity.toggle();
             }.bind(this), function () {
