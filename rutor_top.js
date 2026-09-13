@@ -465,7 +465,8 @@
 
         function makeRow(t) {
             var row = $('<div class="rutor-row selector" tabindex="0"></div>');
-            row.append('<div class="rutor-row__title">' + Lampa.Utils.shortText(t.title, 90) + '</div>');
+            #row.append('<div class="rutor-row__title">' + Lampa.Utils.shortText(t.title, 90) + '</div>');
+            row.append('<div class="rutor-row__title">' + t.title + '</div>');
             row.append(
                 '<div class="rutor-row__meta">' +
                     '<span class="rutor-meta__comments" title="Комментарии">' + (t.comments || '0') + '</span>' +
@@ -822,7 +823,31 @@
         `;
         $('<style id="rutor-table-css">' + css + '</style>').appendTo('head');
     }
-
+    
+    Lampa.Listener.follow('full', function (e) {
+        if (e.type !== 'complite') return;
+    
+        var card = e.data && e.data.movie ? e.data.movie : (Lampa.Activity.active().card || {});
+        var t = card.rutor;
+        if (!t) return;
+    
+        var details = $('.full-start-new__details');
+        if (!details.length) return;
+    
+        // Название раздачи
+        var titleHtml = $('<div class="rutor-full-title" style="margin:0.6em 0 0.4em;font-size:1.05em;line-height:1.35;opacity:0.95;">' + t.title + '</div>');
+    
+        // Бейджи
+        var badges = $('<div class="full-start-new__rate-line rutor-badges" style="margin-bottom:0.6em;"></div>');
+        badges.append('<div class="full-start__rate" style="border:1px solid #ffc107;"><div>' + (t.comments || '0') + '</div><div class="source--name">комм</div></div>');
+        badges.append('<div class="full-start__rate" style="border:1px solid #fff;"><div>' + (t.size || '—') + '</div><div class="source--name">размер</div></div>');
+        badges.append('<div class="full-start__rate" style="border:1px solid #4caf50;"><div>↑ ' + (t.seeds || '0') + '</div><div class="source--name">сиды</div></div>');
+        badges.append('<div class="full-start__rate" style="border:1px solid #f44336;"><div>↓ ' + (t.leeches || '0') + '</div><div class="source--name">личи</div></div>');
+    
+        details.after(titleHtml);
+        titleHtml.after(badges);
+    });
+    
     // ========== Start ==========
     function start() {
         Lampa.Api.sources[SOURCE] = Api;
@@ -835,6 +860,7 @@
                 if (e.type === 'ready') addMenu();
             });
         }
+        
         log.info('плагин загружен', {
             proxy: getProxy(),
             limit: getLimit(),
