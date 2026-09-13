@@ -8,11 +8,12 @@
       height: 100%;
     }
     .rutor-full-block {
-        margin: 0.6em 0;
+        margin: 0 1.5em 1.5em 1.5em;
+        padding: 1em;
     }
     
     .rutor-full-title {
-        font-size: 1.05em;
+        font-size: 1.5em;
         line-height: 1.35;
         opacity: 0.95;
         margin-bottom: 0.5em;
@@ -307,16 +308,17 @@
     }
 
     // ========== Open torrent via TorrServer ==========
-    function openTorrent(item) {
+    function openTorrent(item, card) {
         if (!item || !item.magnet) {
             Lampa.Noty.show('Нет magnet-ссылки');
             return;
         }
+        card = card || {};
         var element = {
             title: item.title,
             MagnetUri: item.magnet,
             Link: item.magnet,
-            poster: '',
+            poster: card.poster || card.img || '',,
             size: item.size,
             seeds: item.seeds,
             peers: item.leeches
@@ -865,39 +867,37 @@
         var t = card.rutor || rutorDataCache[key];
         console.log('[Rutor] full', {
             key: key,
-            card_rutor: card.rutor,
+            card: card,
             from_cache: rutorDataCache[key],
-            picked: t,
             cache_keys: Object.keys(rutorDataCache || {}),
             cache_full: rutorDataCache
         });
         if (!t) return;
     
-        var details = $('.full-start-new__details');
+        var details = $('.full-start-new');
         if (!details.length) return;
     
         // убираем старое, если есть
-        $('.rutor-full-title, .rutor-badges').remove();
         $('.rutor-full-title, .rutor-badges, .rutor-magnet-btn').remove();
 
         var sizeMatch = String(t.size || '').match(/^([\d.,]+)\s*(.+)$/);
         var sizeNum  = sizeMatch ? sizeMatch[1] : (t.size || '—');
         var sizeUnit = sizeMatch ? sizeMatch[2] : '';
-    
+        var peers = (parseInt(t.seeds, 10) || 0) + (parseInt(t.leeches, 10) || 0);
         var wrap = $('<div class="rutor-full-block full-start__pg"></div>');
     
         var titleHtml = $('<div class="rutor-full-title"></div>').text(t.title);
     
-        var badges = $('<div class="rutor-badges full-start__status"></div>');
-        badges.append('<div class="full-start__rate rutor-rate"><div>' + (t.comments || '0') + '</div><div class="source--name">комм</div></div>');
-        badges.append('<div class="full-start__rate rutor-rate"><div>' + sizeNum + '</div><div class="source--name">' + sizeUnit + '</div></div>');
-        badges.append('<div class="full-start__rate rutor-rate"><div>↑ ' + (t.seeds || '0') + '</div><div class="source--name">сиды</div></div>');
-        badges.append('<div class="full-start__rate rutor-rate"><div>↓ ' + (t.leeches || '0') + '</div><div class="source--name">личи</div></div>');
-    
+        var badges = $('<div class="rutor-badges "></div>');
+        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid #ffc107;"><div>' + (t.comments || '0') + '</div><div class="source--name">Комментариев</div></div>');
+        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid #fff;"><div>' + sizeNum + '</div><div class="source--name">' + sizeUnit + '</div></div>');
+        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid #4caf50;"><div>↑ ' + (t.seeds || '0') + '</div><div class="source--name">Сиды</div></div>');
+        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid #f44336;"><div>↓ ' + (t.leeches || '0') + '</div><div class="source--name">Личи</div></div>');
+        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid #fff;"><div>↓ ' + peers + '</div><div class="source--name">Пиры</div></div>');
+        
         wrap.append(titleHtml);
         wrap.append(badges);
 
-        
         details.after(wrap);
 
         var btn = $(
@@ -908,7 +908,7 @@
         );
     
         btn.on('hover:enter', function () {
-            openTorrent(t);
+            openTorrent(t, card);
         });
     
         var buttonsRow = $('.full-start-new__buttons');
