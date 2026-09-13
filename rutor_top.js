@@ -398,6 +398,9 @@
         var last_focus;
         var items = []; // для удобства навигации
 
+        scroll.append(body);
+        html.append(scroll.render());
+        
         function buildTable(data, isCategoryView) {
             body.empty();
             items = [];
@@ -485,6 +488,7 @@
                     data = parseCategories(html);
                 }
                 buildTable(data, isCategory);
+                scroll.resize();
                 this.activity.loader(false);
                 this.activity.toggle();
             }.bind(this), function () {
@@ -492,6 +496,10 @@
                 Lampa.Noty.show('Ошибка загрузки Rutor');
                 this.activity.toggle();
             }.bind(this));
+        };
+        
+        this.render = function () {
+            return html;
         };
         
         this.start = function () {
