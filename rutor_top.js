@@ -825,9 +825,11 @@
     }
     
     Lampa.Listener.follow('full', function (e) {
+        console.log('[Rutor] full event:', e.type, e);
         if (e.type !== 'complite') return;
     
         var card = e.data && e.data.movie ? e.data.movie : (Lampa.Activity.active().card || {});
+        console.log('[Rutor] card keys:', Object.keys(card), 'rutor:', card.rutor);
         var t = card.rutor;
         if (!t) return;
     
