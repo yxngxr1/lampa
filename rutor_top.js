@@ -465,7 +465,7 @@
 
         function makeRow(t) {
             var row = $('<div class="rutor-row selector" tabindex="0"></div>');
-            #row.append('<div class="rutor-row__title">' + Lampa.Utils.shortText(t.title, 90) + '</div>');
+            //row.append('<div class="rutor-row__title">' + Lampa.Utils.shortText(t.title, 90) + '</div>');
             row.append('<div class="rutor-row__title">' + t.title + '</div>');
             row.append(
                 '<div class="rutor-row__meta">' +
