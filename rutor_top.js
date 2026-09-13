@@ -318,7 +318,7 @@
             title: item.title,
             MagnetUri: item.magnet,
             Link: item.magnet,
-            poster: card.poster || card.img || '',,
+            poster: card.poster || card.img || '',
             size: item.size,
             seeds: item.seeds,
             peers: item.leeches
