@@ -830,11 +830,17 @@
         console.log('[Rutor] full event:', e.type, e);
         if (e.type !== 'complite') return;
     
-        var card = e.data && e.data.movie ? e.data.movie : (Lampa.Activity.active().card || {});
-        console.log('[Rutor] card keys:', Object.keys(card), 'rutor:', card.rutor);
-        
+        var card = e.data && e.data.movie ? e.data.movie : (Lampa.Activity.active().card || {});        
         var key = (card.id || '') + '_' + (card.media_type || 'movie');
         var t = card.rutor || rutorDataCache[key];
+        console.log('[Rutor] full', {
+            key: key,
+            card_rutor: card.rutor,
+            from_cache: rutorDataCache[key],
+            picked: t,
+            cache_keys: Object.keys(rutorDataCache || {}),
+            cache_full: rutorDataCache
+        });
         if (!t) return;
     
         var details = $('.full-start-new__details');
