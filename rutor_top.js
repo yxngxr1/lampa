@@ -7,6 +7,36 @@
     .rutor-scroll {
       height: 100%;
     }
+    .rutor-full-block {
+        margin: 0.6em 0;
+    }
+    
+    .rutor-full-title {
+        font-size: 1.05em;
+        line-height: 1.35;
+        opacity: 0.95;
+        margin-bottom: 0.5em;
+    }
+    
+    .rutor-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4em;
+    }
+    
+    .rutor-rate > div:first-child {
+        min-width: 1.8em;
+        width: auto;
+        padding: 0 0.4em;
+        height: 1.5em;
+        box-sizing: border-box;
+        flex-shrink: 0;
+        background: rgba(0, 0, 0, 0.15);
+        border-radius: 0.3em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
     </style>
     `);
   
@@ -848,16 +878,43 @@
     
         // убираем старое, если есть
         $('.rutor-full-title, .rutor-badges').remove();
+        $('.rutor-full-title, .rutor-badges, .rutor-magnet-btn').remove();
+
+        var sizeMatch = String(t.size || '').match(/^([\d.,]+)\s*(.+)$/);
+        var sizeNum  = sizeMatch ? sizeMatch[1] : (t.size || '—');
+        var sizeUnit = sizeMatch ? sizeMatch[2] : '';
     
-        var titleHtml = $('<div class="rutor-full-title" style="margin:0.6em 0 0.4em;font-size:1.05em;line-height:1.35;opacity:0.95;">' + t.title + '</div>');
-        var badges = $('<div class="full-start-new__rate-line rutor-badges" style="margin-bottom:0.6em;"></div>');
-        badges.append('<div class="full-start__rate" style="border:1px solid #ffc107;"><div>' + (t.comments || '0') + '</div><div class="source--name">комм</div></div>');
-        badges.append('<div class="full-start__rate" style="border:1px solid #fff;"><div>' + (t.size || '—') + '</div><div class="source--name">размер</div></div>');
-        badges.append('<div class="full-start__rate" style="border:1px solid #4caf50;"><div>↑ ' + (t.seeds || '0') + '</div><div class="source--name">сиды</div></div>');
-        badges.append('<div class="full-start__rate" style="border:1px solid #f44336;"><div>↓ ' + (t.leeches || '0') + '</div><div class="source--name">личи</div></div>');
+        var wrap = $('<div class="rutor-full-block full-start__pg"></div>');
     
-        details.after(titleHtml);
-        titleHtml.after(badges);
+        var titleHtml = $('<div class="rutor-full-title"></div>').text(t.title);
+    
+        var badges = $('<div class="rutor-badges full-start__status"></div>');
+        badges.append('<div class="full-start__rate rutor-rate"><div>' + (t.comments || '0') + '</div><div class="source--name">комм</div></div>');
+        badges.append('<div class="full-start__rate rutor-rate"><div>' + sizeNum + '</div><div class="source--name">' + sizeUnit + '</div></div>');
+        badges.append('<div class="full-start__rate rutor-rate"><div>↑ ' + (t.seeds || '0') + '</div><div class="source--name">сиды</div></div>');
+        badges.append('<div class="full-start__rate rutor-rate"><div>↓ ' + (t.leeches || '0') + '</div><div class="source--name">личи</div></div>');
+    
+        wrap.append(titleHtml);
+        wrap.append(badges);
+
+        
+        details.after(wrap);
+
+        var btn = $(
+            '<div class="full-start__button selector button--play rutor-magnet-btn">' +
+                HAMMER_SICKLE +
+                '<span>Смотреть</span>' +
+            '</div>'
+        );
+    
+        btn.on('hover:enter', function () {
+            openTorrent(t);
+        });
+    
+        var buttonsRow = $('.full-start-new__buttons');
+        if (buttonsRow.length) {
+            buttonsRow.prepend(btn);
+        }
     });
     
     // ========== Start ==========
