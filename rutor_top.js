@@ -17,7 +17,6 @@
     var BASE = 'http://rutor.info';
     var CACHE_KEY = 'rutor_top_tmdb_cache';
     var CACHE_LIFE = 1000 * 60 * 60 * 24 * 7;
-
     // ID категорий + сортировка по сидам (/browse/0/{id}/0/2)
     var CAT_MAP = {
         'Зарубежные фильмы':        BASE + '/browse/0/1/0/2',
@@ -33,7 +32,8 @@
 
     var network = new Lampa.Reguest();
     var cache = Lampa.Storage.get(CACHE_KEY, {});
-
+    var rutorDataCache = {};
+    
     // ========== Settings helpers ==========
     function getProxy() {
         return Lampa.Storage.get('rutor_proxy', 'https://cors-proxy.gderganov.workers.dev/?url=') || '';
@@ -266,7 +266,9 @@
             searchTMDB(t.title, function (card) {
                 if (card) {
                     card.rutor = t;
+                    rutorDataCache[key] = t;
                     results[idx] = card;
+                    var key = (card.id || '') + '_' + (card.media_type || 'movie');
                 }
                 left--;
                 if (left <= 0) done(results.filter(Boolean));
@@ -830,16 +832,18 @@
     
         var card = e.data && e.data.movie ? e.data.movie : (Lampa.Activity.active().card || {});
         console.log('[Rutor] card keys:', Object.keys(card), 'rutor:', card.rutor);
-        var t = card.rutor;
+        
+        var key = (card.id || '') + '_' + (card.media_type || 'movie');
+        var t = card.rutor || rutorDataCache[key];
         if (!t) return;
     
         var details = $('.full-start-new__details');
         if (!details.length) return;
     
-        // Название раздачи
-        var titleHtml = $('<div class="rutor-full-title" style="margin:0.6em 0 0.4em;font-size:1.05em;line-height:1.35;opacity:0.95;">' + t.title + '</div>');
+        // убираем старое, если есть
+        $('.rutor-full-title, .rutor-badges').remove();
     
-        // Бейджи
+        var titleHtml = $('<div class="rutor-full-title" style="margin:0.6em 0 0.4em;font-size:1.05em;line-height:1.35;opacity:0.95;">' + t.title + '</div>');
         var badges = $('<div class="full-start-new__rate-line rutor-badges" style="margin-bottom:0.6em;"></div>');
         badges.append('<div class="full-start__rate" style="border:1px solid #ffc107;"><div>' + (t.comments || '0') + '</div><div class="source--name">комм</div></div>');
         badges.append('<div class="full-start__rate" style="border:1px solid #fff;"><div>' + (t.size || '—') + '</div><div class="source--name">размер</div></div>');
