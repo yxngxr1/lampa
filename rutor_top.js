@@ -266,9 +266,9 @@
             searchTMDB(t.title, function (card) {
                 if (card) {
                     card.rutor = t;
+                    var key = (card.id || '') + '_' + (card.media_type || 'movie');
                     rutorDataCache[key] = t;
                     results[idx] = card;
-                    var key = (card.id || '') + '_' + (card.media_type || 'movie');
                 }
                 left--;
                 if (left <= 0) done(results.filter(Boolean));
