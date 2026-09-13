@@ -5,13 +5,14 @@
     <style>
     .rutor-table-wrap,
     .rutor-scroll {
-        height: 100%;
+      height: 100%;
     }
     .rutor-table-body {
-        padding: 1em 0;
+      padding: 1em 0;
     }
     </style>
     `);
+  
     if (window.rutor_top_plugin) return;
     window.rutor_top_plugin = true;
 
@@ -435,7 +436,7 @@
                 // Top page — groups by category
                 data.forEach(function (cat) {
                     var section = $('<div class="rutor-section"></div>');
-                    var head = $('<div class="rutor-section__title selector" tabindex="0">' + cat.title + ' →</div>');
+                    var head = $('<div class="rutor-section__title selector" tabindex="0">' + cat.title + '</div>');
                     head.on('hover:enter', function () {
                         Lampa.Activity.push({
                             title: cat.title,
@@ -551,17 +552,8 @@
             html.remove();
         };
 
-        // уменьшаем верхний отступ scroll__content
-        scroll.render().find('.scroll__content').css({
-            paddingTop: '0.6em',
-            paddingBottom: '2em'
-        });
-
         scroll.append(body);
         html.append(scroll.render());
-        setTimeout(function () {
-            scroll.resize();
-        }, 100);
     }
 
     // ========== Menu ==========
@@ -773,15 +765,14 @@
     function injectCSS() {
         if ($('#rutor-table-css').length) return;
         var css = `
-            .rutor-table-wrap { padding: 0.4em 1.2em 1em; height: 100%; box-sizing: border-box; }
-            .rutor-table-body { padding-bottom: 2.5em; }
+            .rutor-table-wrap { padding: 0 1.2em 1em; height: 100%; box-sizing: border-box; }
             .rutor-section { margin-bottom: 1.8em; }
             .rutor-section__title {
+                padding: 0.3em 0.5em;
+                margin-bottom: 0.3em;
                 font-size: 1.3em;
                 font-weight: 600;
                 color: #fff;
-                padding: 0.55em 0.5em;
-                margin-bottom: 0.5em;
                 border-bottom: 2px solid rgba(255,255,255,0.12);
                 cursor: pointer;
             }
@@ -823,9 +814,8 @@
             .rutor-meta__leeches .red { color: #f44336; }
             .rutor-empty { padding: 2em; text-align: center; opacity: 0.6; font-size: 1.2em; }
 
-            /* уменьшаем дефолтный верхний отступ скролла */
             .rutor-table-wrap .scroll--mask .scroll__content {
-                padding-top: 0.5em !important;
+                padding-top: 0 !important;
                 padding-bottom: 2em !important;
             }
         `;
