@@ -1,5 +1,17 @@
 (function () {
     'use strict';
+    
+    $('head').append(`
+    <style>
+    .rutor-table-wrap,
+    .rutor-scroll {
+        height: 100%;
+    }
+    .rutor-table-body {
+        padding: 1em 0;
+    }
+    </style>
+    `);
     if (window.rutor_top_plugin) return;
     window.rutor_top_plugin = true;
 
@@ -509,25 +521,23 @@
                     Lampa.Controller.collectionFocus(last_focus || body.find('.selector').eq(0)[0], scroll.render());
                 },
                 up: () => {
-                    if (Navigator.canmove('up')) {
-                        Navigator.move('up');
-                    } else {
-                        Lampa.Controller.toggle('head');
-                    }
+                    if (Navigator.canmove('up')) Navigator.move('up');
+                    else Lampa.Controller.toggle('head');
                 },
                 down: () => {
-                    Navigator.move('down');
+                    if (Navigator.canmove('down')) Navigator.move('down');
                 },
                 left: () => {
                     if (Navigator.canmove('left')) Navigator.move('left');
                     else Lampa.Controller.toggle('menu');
                 },
                 right: () => {
-                    Navigator.move('right');
+                    if (Navigator.canmove('right')) Navigator.move('right');
                 },
-                back: this.activity.backward
+                back: () => {
+                    Lampa.Activity.backward();
+                }
             });
-        
             Lampa.Controller.toggle('content');
         };
 
