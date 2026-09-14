@@ -138,8 +138,8 @@
             log_level: getLogLevel(),
             tmdb_cache_size: Object.keys(cache).length,
             rutor_cache_size: Object.keys(rutorDataCache).length,
-            rutor_cache_keys: Object.keys(rutorDataCache).slice(0, 10), // первые 10
-            tmdb_cache_sample: Object.keys(cache).slice(0, 5)
+            rutor_cache: rutorDataCache,
+            tmdb_cache: cache
         });
     }
     
@@ -499,12 +499,6 @@
                 body.append('<div class="rutor-empty">Нет раздач</div>');
                 return;
             }
-            logState(isCategory ? 'table (category)' : 'table (top)');
-            log.group('Table data', {
-                isCategory: isCategory,
-                url: url,
-                count: isCategory ? data.length : data.reduce((s, c) => s + (c.torrents || []).length, 0)
-            });
             if (isCategoryView) {
                 // Full category list — one big table
                 var table = $('<div class="rutor-table"></div>');
@@ -631,6 +625,12 @@
                 Lampa.Noty.show('Ошибка загрузки Rutor');
                 this.activity.toggle();
             }.bind(this));
+            logState(isCategory ? 'table (category)' : 'table (top)');
+            log.group('Table data', {
+                isCategory: isCategory,
+                url: url,
+                count: isCategory ? data.length : data.reduce((s, c) => s + (c.torrents || []).length, 0)
+            });
         };
         
         this.render = function () {
