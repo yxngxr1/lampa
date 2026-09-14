@@ -858,6 +858,21 @@
         $('<style id="rutor-table-css">' + css + '</style>').appendTo('head');
     }
     
+    function parseRutorComments(html) {
+        var list = [];
+        var re = /<tr class="c_h"><td><b>([^<]+)<\/b><\/td>\s*<td>([^<]+)<\/td>\s*<td>(?:Оценил на:\s*<b>(\d+)<\/b>)?<\/td>[\s\S]*?<tr><td class="c_t"[^>]*>([\s\S]*?)<\/td><\/tr>/gi;
+        var m;
+        while ((m = re.exec(html)) !== null) {
+            list.push({
+                user: m[1].trim(),
+                date: m[2].trim(),
+                rate: m[3] || '',
+                text: m[4].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+            });
+        }
+        return list;
+    }
+    
     Lampa.Listener.follow('full', function (e) {
         console.log('[Rutor] full event:', e.type, e);
         if (e.type !== 'complite') return;
@@ -891,9 +906,9 @@
         var badges = $('<div class="rutor-badges "></div>');
         badges.append('<div class="full-start__rate rutor-rate"><div>' + (t.comments || '0') + '</div><div class="source--name">Комментариев</div></div>');
         badges.append('<div class="full-start__rate rutor-rate"><div>' + sizeNum + '</div><div class="source--name">' + sizeUnit + '</div></div>');
-        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid 1px solid rgba(255, 255, 255, 0.4);"><div>' + peers + '</div><div class="source--name">Пиры</div></div>');
-        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid rgba(124, 184, 124, 0.4);"><div style="color: #7cb87c">↑ ' + (t.seeds || '0') + '</div><div class="source--name">Сиды</div></div>');
-        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid rgba(217, 122, 122, 0.4);"><div style="color: #d97a7a">↓ ' + (t.leeches || '0') + '</div><div class="source--name">Личи</div></div>');
+        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid rgba(255, 255, 255, 0.4);"><div>' + peers + '</div><div class="source--name">Пиры</div></div>');
+        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid rgba(124, 184, 124, 0.7);"><div style="color: #7cb87c">↑ ' + (t.seeds || '0') + '</div><div class="source--name">Сиды</div></div>');
+        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid rgba(217, 122, 122, 0.8);"><div style="color: #d97a7a">↓ ' + (t.leeches || '0') + '</div><div class="source--name">Личи</div></div>');
         
         wrap.append(titleHtml);
         wrap.append(badges);
@@ -907,15 +922,50 @@
             '</div>'
         );
     
-        btn.on('hover:enter', function () {
+        btn.on('hover:enter', function (ev) {
+            ev.stopPropagation();
+            ev.preventDefault();
             openTorrent(t, card);
-            e.stopPropagation();
-            e.preventDefault();
         });
     
         var buttonsRow = $('.full-start-new__buttons');
         if (buttonsRow.length) {
             buttonsRow.prepend(btn);
+        }
+        
+        if (t.url) {
+            fetchHtml(t.url, function (html) {
+                var comments = parseRutorComments(html);
+                if (!comments.length) return;
+        
+                var line = $('<div class="items-line layer--visible layer--render items-line--type-default rutor-comments-line"></div>');
+                line.append('<div class="items-line__head"><div class="items-line__title">Комментарии rutor.info</div></div>');
+                var body = $('<div class="items-line__body"><div class="scroll scroll--horizontal"><div class="scroll__content"><div class="scroll__body mapping--line"></div></div></div></div>');
+                var cont = body.find('.mapping--line');
+        
+                comments.forEach(function (c) {
+                    var rateHtml = c.rate ? '<div class="full-review__like"><div class="full-review__like-counter">' + c.rate + '</div></div>' : '';
+                    var card = $(
+                        '<div class="full-review selector layer--visible">' +
+                            '<div class="full-review__text">' + c.text + '</div>' +
+                            '<div class="full-review__footer">' +
+                                '<div class="full-review__user loaded">' +
+                                    '<div class="full-review__user-icon"><img class="full-review__user-img" src="https://cub.black/img/profiles/l_1.png"></div>' +
+                                    '<div class="full-review__user-email">' + c.user + '</div>' +
+                                '</div>' +
+                                rateHtml +
+                                '<div style="opacity:0.6;font-size:0.85em;margin-left:auto">' + c.date + '</div>' +
+                            '</div>' +
+                        '</div>'
+                    );
+                    cont.append(card);
+                });
+        
+                line.append(body);
+                $('.full-start-new').closest('.scroll__body, .full-start').find('.items-line').last().after(line);
+                // или проще:
+                // $('.full-start-new').parent().append(line);
+            });
         }
     });
     
