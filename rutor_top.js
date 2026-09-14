@@ -1002,28 +1002,67 @@
     }
     
     function parseRutorTech(html) {
-        var tech = { quality: '', video: '', translation: '', audio: '' };
+        var tech = { quality: '', video: '', translation: '', audio: [] };
         var details = html.match(/<table id="details">[\s\S]*?<\/table>/i);
         if (!details) return tech;
-        var block = details[0].replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
     
-        var q = block.match(/(?:Качество|Тип релиза)\s*[:：]\s*([^<\n]+)/i);
-        if (q) tech.quality = q[1].trim();
+        // <br> → перенос строки, чтобы не потерять границы полей
+        var content = details[0].replace(/<br\s*\/?>/gi, '\n');
     
-        var v = block.match(/Видео\s*[:：]\s*([^<\n]+)/i);
-        if (v) tech.video = v[1].trim();
+        function cleanText(s) {
+            return String(s)
+                .replace(/<[^>]+>/g, ' ')
+                .replace(/&nbsp;/g, ' ')
+                .replace(/&quot;/g, '"')
+                .replace(/&#039;/g, "'")
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&amp;/g, '&')
+                .replace(/[ \t]{2,}/g, ' ')
+                .trim();
+        }
     
-        var trs = [];
-        var trRe = /Перевод(?:\s*\d+)?\s*[:：]\s*([^<\n]+)/gi;
-        var m;
-        while ((m = trRe.exec(block)) !== null) trs.push(m[1].trim());
-        if (trs.length) tech.translation = trs.join(' | ');
+        var translations = [];
+        var audios = [];
     
-        var auds = [];
-        var aRe = /(?:Аудио(?:\s*[#№]?\s*\d+)?|Звук)\s*[:：]\s*([^<\n]+)/gi;
-        while ((m = aRe.exec(block)) !== null) auds.push(m[1].trim());
-        if (auds.length) tech.audio = auds.join(' | ');
+        content.split('\n').forEach(function (line) {
+            // Ловим <b>Label</b> и берём всё после него как значение
+            var m = line.match(/<b>\s*([^<]+?)\s*<\/b>\s*[:\-–—]?\s*([\s\S]*)/i);
+            if (!m) return;
     
+            // Метка: убираем хвост ":", нормализуем пробелы, в нижний регистр
+            var label = m[1]
+                .toLowerCase()
+                .replace(/[:\-–—]+\s*$/, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+            var value = cleanText(m[2]);
+            if (!value) return;
+    
+            // 1) Качество / Тип релиза
+            if (/^(качество|тип релиза)$/.test(label)) {
+                if (!tech.quality) tech.quality = value;
+                return;
+            }
+            // 2) Видео
+            if (/^видео$/.test(label)) {
+                if (!tech.video) tech.video = value;
+                return;
+            }
+            // 3) Перевод / Озвучивание / Озвучка / Дубляж (в т.ч. «Перевод 1», «Перевод 1-2»)
+            if (/^(перевод|озвучивание|озвучка|дубляж)(\s*№?\s*\d+(?:\s*[-–]\s*\d+)?)?$/.test(label)) {
+                translations.push(value);
+                return;
+            }
+            // 4) Аудио / Звук (может быть много: «Аудио 1», «Аудио # 2», «Звук», «Звук 3»)
+            if (/^(аудио|звук)(\s*[#№]?\s*\d+)?$/.test(label)) {
+                audios.push(value);
+                return;
+            }
+        });
+    
+        tech.translation = translations.join(' | ');
+        tech.audio = audios;
         return tech;
     }
     
