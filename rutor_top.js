@@ -864,16 +864,55 @@
     
     function parseRutorComments(html) {
         var list = [];
-        var re = /<tr class="c_h"><td><b>([^<]+)<\/b><\/td>\s*<td>([^<]+)<\/td>\s*<td>(?:Оценил на:\s*<b>(\d+)<\/b>)?<\/td>[\s\S]*?<tr><td class="c_t"[^>]*>([\s\S]*?)<\/td><\/tr>/gi;
-        var m;
-        while ((m = re.exec(html)) !== null) {
-            list.push({
-                user: m[1].trim(),
-                date: m[2].trim(),
-                rate: m[3] || '',
-                text: m[4].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+        var blocks = html.split(/<tr class="c_h">/i).slice(1);
+    
+        blocks.forEach(function (block) {
+            var userM = block.match(/<td>\s*<b>([^<]+)<\/b>\s*<\/td>/i);
+            var dateM = block.match(/<\/b>\s*<\/td>\s*<td>([^<]*)<\/td>/i);
+            var rateM = block.match(/Оценил на:\s*<b>\s*(\d+)\s*<\/b>/i);
+            var textM = block.match(/<td class="c_t"[^>]*>([\s\S]*?)<\/td>/i);
+    
+            if (!userM || !textM) return;
+    
+            var raw = textM[1];
+    
+            // скрытый текст
+            raw = raw.replace(/<textarea[^>]*class="hidearea"[^>]*>([\s\S]*?)<\/textarea>/gi, function (_, t) {
+                return '\n' + t + '\n';
             });
-        }
+    
+            // цитаты
+            raw = raw.replace(/<fieldset[^>]*>[\s\S]*?<legend[^>]*>[\s\S]*?<\/legend>([\s\S]*?)<\/fieldset>/gi, function (_, t) {
+                return '\n[Цитата] ' + t.replace(/<[^>]+>/g, ' ').trim() + '\n';
+            });
+    
+            var text = raw
+                .replace(/<br\s*\/?>/gi, '\n')
+                .replace(/<img[^>]*>/gi, '')
+                .replace(/<script[\s\S]*?<\/script>/gi, '')
+                .replace(/<[^>]+>/g, ' ')
+                .replace(/&nbsp;/g, ' ')
+                .replace(/&quot;/g, '"')
+                .replace(/&#039;/g, "'")
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&amp;/g, '&')
+                .replace(/[ \t]+\n/g, '\n')
+                .replace(/\n{3,}/g, '\n\n')
+                .replace(/[ \t]{2,}/g, ' ')
+                .trim();
+    
+            // модерация / пустые
+            if (!text || /Комментарий проверяется/i.test(text)) return;
+    
+            list.push({
+                user: userM[1].trim(),
+                date: dateM ? dateM[1].trim() : '',
+                rate: rateM ? rateM[1] : '',
+                text: text
+            });
+        });
+    
         return list;
     }
     
