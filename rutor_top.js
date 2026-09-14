@@ -620,17 +620,17 @@
                 buildTable(data, isCategory);
                 this.activity.loader(false);
                 this.activity.toggle();
+                logState(isCategory ? 'table (category)' : 'table (top)');
+                log.group('Table data', {
+                    isCategory: isCategory,
+                    url: url,
+                    count: isCategory ? data.length : data.reduce((s, c) => s + (c.torrents || []).length, 0)
+                });
             }.bind(this), function () {
                 this.activity.loader(false);
                 Lampa.Noty.show('Ошибка загрузки Rutor');
                 this.activity.toggle();
             }.bind(this));
-            logState(isCategory ? 'table (category)' : 'table (top)');
-            log.group('Table data', {
-                isCategory: isCategory,
-                url: url,
-                count: isCategory ? data.length : data.reduce((s, c) => s + (c.torrents || []).length, 0)
-            });
         };
         
         this.render = function () {
