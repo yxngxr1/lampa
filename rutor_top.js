@@ -125,7 +125,23 @@
             console.groupEnd();
         }
     };
-
+    
+    // ========== Логи состояния ==========
+    function logState(place) {
+        log.group('STATE @ ' + place, {
+            proxy: getProxy(),
+            limit: getLimit(),
+            list_limit: getListLimit(),
+            view_mode: getViewMode(),
+            cache_enabled: getCacheEnabled(),
+            log_level: getLogLevel(),
+            tmdb_cache_size: Object.keys(cache).length,
+            rutor_cache_size: Object.keys(rutorDataCache).length,
+            rutor_cache_keys: Object.keys(rutorDataCache).slice(0, 10), // первые 10
+            tmdb_cache_sample: Object.keys(cache).slice(0, 5)
+        });
+    }
+    
     function saveCache() {
         if (getCacheEnabled()) Lampa.Storage.set(CACHE_KEY, cache);
     }
@@ -395,6 +411,7 @@
             var partsData = [];
             fetchHtml(BASE + '/top', function (html) {
                 var cats = parseCategories(html);
+                logState('category (top)');
                 log.group('Категории топа (' + cats.length + ')', cats.map(function (c) {
                     return { title: c.title, count: c.torrents.length, url: c.url };
                 }));
@@ -441,6 +458,7 @@
             log.info('list', url);
             fetchHtml(url, function (html) {
                 var torrents = parseTorrents(html, getListLimit());
+                logState('list (category)');
                 log.group('Список категории', { url: url, count: torrents.length });
                 resolveCards(torrents, function (cards) {
                     onSuccess({
@@ -481,7 +499,12 @@
                 body.append('<div class="rutor-empty">Нет раздач</div>');
                 return;
             }
-
+            logState(isCategory ? 'table (category)' : 'table (top)');
+            log.group('Table data', {
+                isCategory: isCategory,
+                url: url,
+                count: isCategory ? data.length : data.reduce((s, c) => s + (c.torrents || []).length, 0)
+            });
             if (isCategoryView) {
                 // Full category list — one big table
                 var table = $('<div class="rutor-table"></div>');
@@ -989,10 +1012,10 @@
         var t = card.rutor || (card.rutorKey && rutorDataCache[card.rutorKey]);
         
         console.log('[Rutor] full', {
+            rutorKey: card.rutorKey,
             card: card,
-            from_cache: rutorDataCache[key],
-            cache_keys: Object.keys(rutorDataCache || {}),
-            cache_full: rutorDataCache
+            from_cache: t,
+            cache_keys: Object.keys(rutorDataCache || {})
         });
         if (!t) return;
     
