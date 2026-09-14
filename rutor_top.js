@@ -342,7 +342,7 @@
                 if (card) {
                     var key = t.magnet || t.title;
                     rutorDataCache[key] = t;
-                    pendingRutorKey = key;
+                    card.rutorKey = key;
                     results[idx] = card;
                 }
                 left--;
@@ -412,9 +412,7 @@
             fetchHtml(BASE + '/top', function (html) {
                 var cats = parseCategories(html);
                 logState('category (top)');
-                log.group('Категории топа (' + cats.length + ')', cats.map(function (c) {
-                    return { title: c.title, count: c.torrents.length, url: c.url };
-                }));
+                log.group('Категории топа (' + cats.length + ')', cats);
                 cats.forEach(function (cat) {
                     partsData.push(function (call) {
                         resolveCards(cat.torrents, function (cards) {
@@ -1232,6 +1230,18 @@
     function start() {
         Lampa.Api.sources[SOURCE] = Api;
         Lampa.Component.add('rutor_table', createTableComponent);
+
+        // === хук на push ===
+        var _push = Lampa.Activity.push;
+        Lampa.Activity.push = function (params) {
+            if (params && params.card && params.card.rutorKey) {
+                pendingRutorKey = params.card.rutorKey;
+                log.debug('push: запомнил pendingRutorKey', pendingRutorKey);
+            }
+            return _push.apply(this, arguments);
+        };
+        // ====================
+        
         addSettings();
         injectCSS();
         if (window.appready) addMenu();
