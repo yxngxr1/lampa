@@ -889,11 +889,11 @@
         var titleHtml = $('<div class="rutor-full-title"></div>').text(t.title);
     
         var badges = $('<div class="rutor-badges "></div>');
-        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid #ffc107;"><div>' + (t.comments || '0') + '</div><div class="source--name">Комментариев</div></div>');
-        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid #fff;"><div>' + sizeNum + '</div><div class="source--name">' + sizeUnit + '</div></div>');
-        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid #4caf50;"><div>↑ ' + (t.seeds || '0') + '</div><div class="source--name">Сиды</div></div>');
-        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid #f44336;"><div>↓ ' + (t.leeches || '0') + '</div><div class="source--name">Личи</div></div>');
-        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid #fff;"><div>↓ ' + peers + '</div><div class="source--name">Пиры</div></div>');
+        badges.append('<div class="full-start__rate rutor-rate"><div>' + (t.comments || '0') + '</div><div class="source--name">Комментариев</div></div>');
+        badges.append('<div class="full-start__rate rutor-rate"><div>' + sizeNum + '</div><div class="source--name">' + sizeUnit + '</div></div>');
+        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid 1px solid rgba(255, 255, 255, 0.4);"><div>' + peers + '</div><div class="source--name">Пиры</div></div>');
+        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid rgba(124, 184, 124, 0.4);"><div style="color: #7cb87c">↑ ' + (t.seeds || '0') + '</div><div class="source--name">Сиды</div></div>');
+        badges.append('<div class="full-start__rate rutor-rate" style="border:1px solid rgba(217, 122, 122, 0.4);"><div style="color: #d97a7a">↓ ' + (t.leeches || '0') + '</div><div class="source--name">Личи</div></div>');
         
         wrap.append(titleHtml);
         wrap.append(badges);
@@ -909,6 +909,8 @@
     
         btn.on('hover:enter', function () {
             openTorrent(t, card);
+            e.stopPropagation();
+            e.preventDefault();
         });
     
         var buttonsRow = $('.full-start-new__buttons');
