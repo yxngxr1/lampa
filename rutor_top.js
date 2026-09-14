@@ -1001,6 +1001,32 @@
         return list;
     }
     
+    function parseRutorTech(html) {
+        var tech = { quality: '', video: '', translation: '', audio: '' };
+        var details = html.match(/<table id="details">[\s\S]*?<\/table>/i);
+        if (!details) return tech;
+        var block = details[0].replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+    
+        var q = block.match(/(?:Качество|Тип релиза)\s*[:：]\s*([^<\n]+)/i);
+        if (q) tech.quality = q[1].trim();
+    
+        var v = block.match(/Видео\s*[:：]\s*([^<\n]+)/i);
+        if (v) tech.video = v[1].trim();
+    
+        var trs = [];
+        var trRe = /Перевод(?:\s*\d+)?\s*[:：]\s*([^<\n]+)/gi;
+        var m;
+        while ((m = trRe.exec(block)) !== null) trs.push(m[1].trim());
+        if (trs.length) tech.translation = trs.join(' | ');
+    
+        var auds = [];
+        var aRe = /(?:Аудио(?:\s*[#№]?\s*\d+)?|Звук)\s*[:：]\s*([^<\n]+)/gi;
+        while ((m = aRe.exec(block)) !== null) auds.push(m[1].trim());
+        if (auds.length) tech.audio = auds.join(' | ');
+    
+        return tech;
+    }
+    
     Lampa.Listener.follow('full', function (e) {
         console.log('[Rutor] full event:', e.type, e);
         if (e.type !== 'complite') return;
@@ -1069,8 +1095,19 @@
         if (t.url) {
             fetchHtml(t.url, function (html) {
                 var comments = parseRutorComments(html);
+                var tech = parseRutorTech(html);
+                
                 if (!comments.length) return;
         
+                if (tech.quality || tech.video || tech.translation || tech.audio) {
+                    var techHtml = $('<div class="rutor-tech" style="font-size:0.85em;line-height:1.4;opacity:0.9;margin:0.3em 0 0.6em"></div>');
+                    if (tech.quality) techHtml.append('<div><b>Качество:</b> ' + tech.quality + '</div>');
+                    if (tech.video) techHtml.append('<div><b>Видео:</b> ' + tech.video + '</div>');
+                    if (tech.translation) techHtml.append('<div><b>Перевод:</b> ' + tech.translation + '</div>');
+                    if (tech.audio) techHtml.append('<div><b>Аудио:</b> ' + tech.audio + '</div>');
+                    titleHtml.after(techHtml);
+                }
+                
                 $('.rutor-comments-line').remove();
         
                 var hscroll = new Lampa.Scroll({ horizontal: true, mask: true, step: 300 });
