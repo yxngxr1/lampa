@@ -68,6 +68,7 @@
     var network = new Lampa.Reguest();
     var cache = Lampa.Storage.get(CACHE_KEY, {});
     var rutorDataCache = {};
+    var pendingRutorKey = null;
     
     // ========== Settings helpers ==========
     function getProxy() {
@@ -341,8 +342,7 @@
                 if (card) {
                     var key = t.magnet || t.title;
                     rutorDataCache[key] = t;
-                    card.rutor = t;
-                    card.rutorKey = key;
+                    pendingRutorKey = key;
                     results[idx] = card;
                 }
                 left--;
@@ -584,8 +584,7 @@
                                     }
                                     var key = t.magnet || t.title;
                                     rutorDataCache[key] = t;
-                                    card.rutorKey = key;
-                                    card.rutor = t;
+                                    pendingRutorKey = key;
                                     Lampa.Activity.push({
                                         url: '',
                                         component: 'full',
@@ -1007,9 +1006,10 @@
     Lampa.Listener.follow('full', function (e) {
         console.log('[Rutor] full event:', e.type, e);
         if (e.type !== 'complite') return;
-
-        var card = e.data && e.data.movie ? e.data.movie : (Lampa.Activity.active().card || {});
-        var t = card.rutor || (card.rutorKey && rutorDataCache[card.rutorKey]);
+                
+        var key = pendingRutorKey;
+        pendingRutorKey = null;                     // одноразовый
+        var t = key ? rutorDataCache[key] : null;
         
         console.log('[Rutor] full', {
             rutorKey: card.rutorKey,
