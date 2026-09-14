@@ -38,6 +38,10 @@
         align-items: center;
         justify-content: center;
     }
+
+    .rutor-comments-line .scroll--horizontal .scroll__content {
+        padding: 0 1.5em;
+    }
     </style>
     `);
   
@@ -942,19 +946,24 @@
         
                 $('.rutor-comments-line').remove();
         
-                var line = $('<div class="items-line layer--visible layer--render items-line--type-default rutor-comments-line"></div>');
-                line.append('<div class="items-line__head"><div class="items-line__title">Комментарии rutor.info</div></div>');
+                var line = $(
+                    '<div class="items-line layer--visible layer--render items-line--type-default rutor-comments-line" style="margin:1.5em 0">' +
+                        '<div class="items-line__head"><div class="items-line__title">Комментарии rutor.info</div></div>' +
+                        '<div class="items-line__body">' +
+                            '<div class="scroll scroll--horizontal scroll--mask">' +
+                                '<div class="scroll__content">' +
+                                    '<div class="scroll__body mapping--line"></div>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>'
+                );
+                var cont = line.find('.mapping--line');
+                var cards = [];
         
-                var body = $('<div class="items-line__body"></div>');
-                var hscroll = new Lampa.Scroll({ horizontal: true, mask: true, over: true });
-                var cont = $('<div class="scroll__body mapping--line"></div>');
-                hscroll.append(cont);
-                body.append(hscroll.render());
-                line.append(body);
-        
-                comments.forEach(function (c) {
+                comments.forEach(function (c, idx) {
                     var rateHtml = c.rate
-                        ? '<div class="full-review__like" style="border:1px solid rgba(255,255,255,0.35);border-radius:0.3em;padding:0.15em 0.45em;"><div class="full-review__like-counter">' + c.rate + '</div></div>'
+                        ? '<div class="full-review__like" style="border:1px solid rgba(255,255,255,0.35);border-radius:0.3em;padding:0.15em 0.45em"><div class="full-review__like-counter">' + c.rate + '</div></div>'
                         : '';
         
                     var card = $(
@@ -972,7 +981,10 @@
                     );
         
                     card.on('hover:focus', function () {
-                        hscroll.update(card, true);
+                        // горизонтальный скролл как у Lampa
+                        var offset = card[0].offsetLeft - (window.innerWidth * 0.05);
+                        if (offset < 0) offset = 0;
+                        cont.css('transform', 'translate3d(-' + offset + 'px, 0px, 0px)');
                     });
         
                     card.on('hover:enter', function () {
@@ -1000,23 +1012,27 @@
                     });
         
                     cont.append(card);
+                    cards.push(card[0]);
                 });
         
-                // сразу после «Подробно»
                 var podrobno = $('.items-line').filter(function () {
                     return $(this).find('.items-line__title').text().trim() === 'Подробно';
                 });
                 if (podrobno.length) podrobno.after(line);
                 else $('.full-start-new').after(line);
         
-                // критично для пульта
+                // в коллекцию фокуса
                 Lampa.Layer.update(line);
                 setTimeout(function () {
                     var act = Lampa.Activity.active();
                     if (act && act.activity && act.activity.render) {
                         Lampa.Controller.collectionSet(act.activity.render());
                     }
-                }, 50);
+                    // докинуть карточки в текущую коллекцию
+                    cards.forEach(function (el) {
+                        Lampa.Controller.collectionAppend(el);
+                    });
+                }, 80);
             });
         }
     });
