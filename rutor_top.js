@@ -9,14 +9,13 @@
     }
     .rutor-full-block {
         margin: 0 1.5em 1.5em 1.5em;
-        padding: 1em;
+        padding: 0.5em;
     }
     
     .rutor-full-title {
         font-size: 1.5em;
         line-height: 1.35;
         opacity: 0.95;
-        margin-bottom: 0.5em;
     }
     
     .rutor-badges {
@@ -943,6 +942,19 @@
                 padding-top: 0 !important;
                 padding-bottom: 2em !important;
             }
+
+            /* === Сжатие карточки только при наличии нашего блока === */
+            .full-start-new:has(~ .rutor-full-block) {
+                padding-bottom: 1em !important;
+            }
+            
+            /* .scroll__content на этой странице */
+            .scroll__content:has(.rutor-full-block) {
+                padding: 0.5em 0 !important;
+            }
+            .scroll--mask .scroll__content:has(.rutor-full-block) {
+                padding: 0 !important;
+            }
         `;
         $('<style id="rutor-table-css">' + css + '</style>').appendTo('head');
     }
@@ -1061,8 +1073,9 @@
             }
         });
     
-        tech.translation = translations.join(' | ');
-        tech.audio = audios;
+        tech.translation = translations.join(' • ');
+        tech.audio = audios.join(' • ');
+        
         return tech;
     }
     
