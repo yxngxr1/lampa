@@ -916,7 +916,7 @@
         details.after(wrap);
 
         var btn = $(
-            '<div class="full-start__button selector button--play rutor-magnet-btn">' +
+            '<div class="full-start__button selector rutor-magnet-btn">' +
                 HAMMER_SICKLE +
                 '<span>Смотреть</span>' +
             '</div>'
@@ -925,7 +925,9 @@
         btn.on('hover:enter', function (ev) {
             ev.stopPropagation();
             ev.preventDefault();
+            if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
             openTorrent(t, card);
+            return false;
         });
     
         var buttonsRow = $('.full-start-new__buttons');
@@ -944,17 +946,20 @@
                 line.append('<div class="items-line__head"><div class="items-line__title">Комментарии rutor.info</div></div>');
         
                 var body = $('<div class="items-line__body"></div>');
-                var scroll = $('<div class="scroll scroll--horizontal"><div class="scroll__content"><div class="scroll__body mapping--line"></div></div></div>');
-                var cont = scroll.find('.mapping--line');
-                body.append(scroll);
+                var hscroll = new Lampa.Scroll({ horizontal: true, mask: true, over: true });
+                var cont = $('<div class="scroll__body mapping--line"></div>');
+                hscroll.append(cont);
+                body.append(hscroll.render());
                 line.append(body);
         
                 comments.forEach(function (c) {
                     var rateHtml = c.rate
-                        ? '<div class="full-review__like"><div class="full-review__like-counter">' + c.rate + '</div></div>'
+                        ? '<div class="full-review__like" style="border:1px solid rgba(255,255,255,0.35);border-radius:0.3em;padding:0.15em 0.45em;"><div class="full-review__like-counter">' + c.rate + '</div></div>'
                         : '';
+        
                     var card = $(
                         '<div class="full-review selector layer--visible" tabindex="0">' +
+                            '<div style="opacity:0.55;font-size:0.82em;margin-bottom:0.35em">' + c.date + '</div>' +
                             '<div class="full-review__text">' + c.text + '</div>' +
                             '<div class="full-review__footer">' +
                                 '<div class="full-review__user loaded">' +
@@ -962,24 +967,30 @@
                                     '<div class="full-review__user-email">' + c.user + '</div>' +
                                 '</div>' +
                                 rateHtml +
-                                '<div style="opacity:0.6;font-size:0.85em;margin-left:auto">' + c.date + '</div>' +
                             '</div>' +
                         '</div>'
                     );
         
+                    card.on('hover:focus', function () {
+                        hscroll.update(card, true);
+                    });
+        
                     card.on('hover:enter', function () {
                         var rateBadge = c.rate
-                            ? '<span class="full-start__pg" style="margin-left:0.5em">' + c.rate + '</span>'
+                            ? '<span class="full-start__pg" style="margin-left:0.6em">' + c.rate + '</span>'
                             : '';
                         Lampa.Modal.open({
-                            title: c.date,
-                            html: $('<div style="padding:1.2em">' +
-                                '<div style="display:flex;align-items:center;gap:0.6em;margin-bottom:1em">' +
-                                    '<div class="full-review__user-icon"><img class="full-review__user-img" src="https://cub.black/img/profiles/l_1.png"></div>' +
-                                    '<b>' + c.user + '</b>' + rateBadge +
-                                '</div>' +
-                                '<div style="line-height:1.5;white-space:pre-wrap">' + c.text + '</div>' +
-                            '</div>'),
+                            title: '',
+                            html: $(
+                                '<div style="padding:1.4em 1.6em">' +
+                                    '<div style="opacity:0.55;font-size:0.9em;margin-bottom:0.8em">' + c.date + '</div>' +
+                                    '<div style="display:flex;align-items:center;gap:0.6em;margin-bottom:1.1em">' +
+                                        '<div class="full-review__user-icon"><img class="full-review__user-img" src="https://cub.black/img/profiles/l_1.png"></div>' +
+                                        '<b style="font-size:1.15em">' + c.user + '</b>' + rateBadge +
+                                    '</div>' +
+                                    '<div style="line-height:1.55;font-size:1.15em;white-space:pre-wrap">' + c.text + '</div>' +
+                                '</div>'
+                            ),
                             size: 'medium',
                             onBack: function () {
                                 Lampa.Modal.close();
@@ -991,21 +1002,21 @@
                     cont.append(card);
                 });
         
-                // вставка сразу после "Подробно"
+                // сразу после «Подробно»
                 var podrobno = $('.items-line').filter(function () {
                     return $(this).find('.items-line__title').text().trim() === 'Подробно';
                 });
-                if (podrobno.length) {
-                    podrobno.after(line);
-                } else {
-                    $('.full-start-new').after(line);
-                }
+                if (podrobno.length) podrobno.after(line);
+                else $('.full-start-new').after(line);
         
-                // чтобы горизонтальный скролл и фокус работали
+                // критично для пульта
                 Lampa.Layer.update(line);
-                if (Lampa.Activity.active() && Lampa.Activity.active().activity) {
-                    Lampa.Controller.collectionSet(Lampa.Activity.active().activity.render());
-                }
+                setTimeout(function () {
+                    var act = Lampa.Activity.active();
+                    if (act && act.activity && act.activity.render) {
+                        Lampa.Controller.collectionSet(act.activity.render());
+                    }
+                }, 50);
             });
         }
     });
