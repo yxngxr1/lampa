@@ -13,9 +13,7 @@
     }
     
     .rutor-full-title {
-        font-size: 1.5em;
-        line-height: 1.35;
-        opacity: 0.95;
+        font-weight: 600;
     }
     
     .rutor-badges {
