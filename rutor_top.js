@@ -1006,17 +1006,20 @@
     Lampa.Listener.follow('full', function (e) {
         console.log('[Rutor] full event:', e.type, e);
         if (e.type !== 'complite') return;
-                
+        
         var key = pendingRutorKey;
-        pendingRutorKey = null;                     // одноразовый
+        pendingRutorKey = null;
+    
+        var card = e.data && e.data.movie ? e.data.movie : (Lampa.Activity.active().card || {});
         var t = key ? rutorDataCache[key] : null;
         
         console.log('[Rutor] full', {
-            rutorKey: card.rutorKey,
+            pendingRutorKey: key,
             card: card,
             from_cache: t,
-            cache_keys: Object.keys(rutorDataCache || {})
+            cache: rutorDataCache
         });
+        
         if (!t) return;
     
         var details = $('.full-start-new');
