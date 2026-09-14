@@ -938,15 +938,23 @@
                 var comments = parseRutorComments(html);
                 if (!comments.length) return;
         
+                $('.rutor-comments-line').remove();
+        
                 var line = $('<div class="items-line layer--visible layer--render items-line--type-default rutor-comments-line"></div>');
                 line.append('<div class="items-line__head"><div class="items-line__title">Комментарии rutor.info</div></div>');
-                var body = $('<div class="items-line__body"><div class="scroll scroll--horizontal"><div class="scroll__content"><div class="scroll__body mapping--line"></div></div></div></div>');
-                var cont = body.find('.mapping--line');
+        
+                var body = $('<div class="items-line__body"></div>');
+                var scroll = $('<div class="scroll scroll--horizontal"><div class="scroll__content"><div class="scroll__body mapping--line"></div></div></div>');
+                var cont = scroll.find('.mapping--line');
+                body.append(scroll);
+                line.append(body);
         
                 comments.forEach(function (c) {
-                    var rateHtml = c.rate ? '<div class="full-review__like"><div class="full-review__like-counter">' + c.rate + '</div></div>' : '';
+                    var rateHtml = c.rate
+                        ? '<div class="full-review__like"><div class="full-review__like-counter">' + c.rate + '</div></div>'
+                        : '';
                     var card = $(
-                        '<div class="full-review selector layer--visible">' +
+                        '<div class="full-review selector layer--visible" tabindex="0">' +
                             '<div class="full-review__text">' + c.text + '</div>' +
                             '<div class="full-review__footer">' +
                                 '<div class="full-review__user loaded">' +
@@ -958,13 +966,46 @@
                             '</div>' +
                         '</div>'
                     );
+        
+                    card.on('hover:enter', function () {
+                        var rateBadge = c.rate
+                            ? '<span class="full-start__pg" style="margin-left:0.5em">' + c.rate + '</span>'
+                            : '';
+                        Lampa.Modal.open({
+                            title: c.date,
+                            html: $('<div style="padding:1.2em">' +
+                                '<div style="display:flex;align-items:center;gap:0.6em;margin-bottom:1em">' +
+                                    '<div class="full-review__user-icon"><img class="full-review__user-img" src="https://cub.black/img/profiles/l_1.png"></div>' +
+                                    '<b>' + c.user + '</b>' + rateBadge +
+                                '</div>' +
+                                '<div style="line-height:1.5;white-space:pre-wrap">' + c.text + '</div>' +
+                            '</div>'),
+                            size: 'medium',
+                            onBack: function () {
+                                Lampa.Modal.close();
+                                Lampa.Controller.toggle('content');
+                            }
+                        });
+                    });
+        
                     cont.append(card);
                 });
         
-                line.append(body);
-                $('.full-start-new').closest('.scroll__body, .full-start').find('.items-line').last().after(line);
-                // или проще:
-                // $('.full-start-new').parent().append(line);
+                // вставка сразу после "Подробно"
+                var podrobno = $('.items-line').filter(function () {
+                    return $(this).find('.items-line__title').text().trim() === 'Подробно';
+                });
+                if (podrobno.length) {
+                    podrobno.after(line);
+                } else {
+                    $('.full-start-new').after(line);
+                }
+        
+                // чтобы горизонтальный скролл и фокус работали
+                Lampa.Layer.update(line);
+                if (Lampa.Activity.active() && Lampa.Activity.active().activity) {
+                    Lampa.Controller.collectionSet(Lampa.Activity.active().activity.render());
+                }
             });
         }
     });
