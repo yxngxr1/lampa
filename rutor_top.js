@@ -384,7 +384,7 @@
         category: function (params, onSuccess, onError) {
             if (getViewMode() === 'table') {
                 Lampa.Activity.replace({
-                    title: 'Rutor Топ',
+                    title: 'Rutor топ',
                     component: 'rutor_table',
                     url: BASE + '/top',
                     page: 1,
@@ -539,8 +539,9 @@
             );
             row.on('hover:enter', function () {
                 Lampa.Modal.open({
-                    title: Lampa.Utils.shortText(t.title, 60),
-                    html: $('<div></div>'),
+                    title: Lampa.Utils.shortText(t.title, 80),
+                    html: $('<div style="font-size:0.95em;padding:0.3em 0"></div>'),
+                    size: 'large',   // шире
                     buttons: [
                         {
                             name: 'Смотреть',
@@ -558,10 +559,10 @@
                                         Lampa.Noty.show('Карточка не найдена');
                                         return;
                                     }
+                                    var key = t.magnet || t.title;
+                                    rutorDataCache[key] = t;
+                                    card.rutorKey = key;
                                     card.rutor = t;
-                                    var key = (card.id || '') + '_' + (card.media_type || 'movie');
-                                    if (!rutorDataCache[key]) rutorDataCache[key] = [];
-                                    rutorDataCache[key].push(t);
                                     Lampa.Activity.push({
                                         url: '',
                                         component: 'full',
@@ -984,11 +985,10 @@
         console.log('[Rutor] full event:', e.type, e);
         if (e.type !== 'complite') return;
 
-        var card = e.data?.movie || Lampa.Activity.active().card || {};
+        var card = e.data && e.data.movie ? e.data.movie : (Lampa.Activity.active().card || {});
         var t = card.rutor || (card.rutorKey && rutorDataCache[card.rutorKey]);
         
         console.log('[Rutor] full', {
-            key: key,
             card: card,
             from_cache: rutorDataCache[key],
             cache_keys: Object.keys(rutorDataCache || {}),
