@@ -946,22 +946,11 @@
         
                 $('.rutor-comments-line').remove();
         
-                var line = $(
-                    '<div class="items-line layer--visible layer--render items-line--type-default rutor-comments-line" style="margin:1.5em 0">' +
-                        '<div class="items-line__head"><div class="items-line__title">Комментарии rutor.info</div></div>' +
-                        '<div class="items-line__body">' +
-                            '<div class="scroll scroll--horizontal scroll--mask">' +
-                                '<div class="scroll__content">' +
-                                    '<div class="scroll__body mapping--line"></div>' +
-                                '</div>' +
-                            '</div>' +
-                        '</div>' +
-                    '</div>'
-                );
-                var cont = line.find('.mapping--line');
+                var hscroll = new Lampa.Scroll({ horizontal: true, mask: true, step: 300 });
+                var lastFocus = false;
                 var cards = [];
         
-                comments.forEach(function (c, idx) {
+                comments.forEach(function (c) {
                     var rateHtml = c.rate
                         ? '<div class="full-review__like" style="border:1px solid rgba(255,255,255,0.35);border-radius:0.3em;padding:0.15em 0.45em"><div class="full-review__like-counter">' + c.rate + '</div></div>'
                         : '';
@@ -981,10 +970,8 @@
                     );
         
                     card.on('hover:focus', function () {
-                        // горизонтальный скролл как у Lampa
-                        var offset = card[0].offsetLeft - (window.innerWidth * 0.05);
-                        if (offset < 0) offset = 0;
-                        cont.css('transform', 'translate3d(-' + offset + 'px, 0px, 0px)');
+                        lastFocus = card[0];
+                        hscroll.update(card, true);
                     });
         
                     card.on('hover:enter', function () {
@@ -994,7 +981,7 @@
                         Lampa.Modal.open({
                             title: '',
                             html: $(
-                                '<div style="padding:1.4em 1.6em">' +
+                                '<div>' +
                                     '<div style="opacity:0.55;font-size:0.9em;margin-bottom:0.8em">' + c.date + '</div>' +
                                     '<div style="display:flex;align-items:center;gap:0.6em;margin-bottom:1.1em">' +
                                         '<div class="full-review__user-icon"><img class="full-review__user-img" src="https://cub.black/img/profiles/l_1.png"></div>' +
@@ -1011,28 +998,107 @@
                         });
                     });
         
-                    cont.append(card);
-                    cards.push(card[0]);
+                    hscroll.append(card);
+                    cards.push(card);
                 });
         
+                var line = $(
+                    '<div class="items-line layer--visible layer--render items-line--type-default rutor-comments-line">' +
+                        '<div class="items-line__head"><div class="items-line__title">Комментарии rutor.info</div></div>' +
+                        '<div class="items-line__body"></div>' +
+                    '</div>'
+                );
+                line.find('.items-line__body').append(hscroll.render());
+        
+                // объект-ряд как у Lampa Line
+                var lineObj = {
+                    onDown: null,
+                    onUp: null,
+                    onLeft: null,
+                    onBack: null,
+                    onToggle: null,
+                    use: function (hooks) {
+                        if (hooks.onDown) this.onDown = hooks.onDown;
+                        if (hooks.onUp) this.onUp = hooks.onUp;
+                        if (hooks.onLeft) this.onLeft = hooks.onLeft;
+                        if (hooks.onBack) this.onBack = hooks.onBack;
+                        if (hooks.onToggle) this.onToggle = hooks.onToggle;
+                        if (hooks.onActive) this.onActive = hooks.onActive;
+                    },
+                    toggle: function () {
+                        var self = this;
+                        Lampa.Controller.add('items_line', {
+                            link: self,
+                            toggle: function () {
+                                Lampa.Controller.collectionSet(hscroll.render(true));
+                                Lampa.Controller.collectionFocus(lastFocus || false, hscroll.render(true));
+                                if (self.onToggle) self.onToggle(self);
+                                if (self.onActive) self.onActive();
+                            },
+                            right: function () {
+                                if (Navigator.canmove('right')) Navigator.move('right');
+                            },
+                            left: function () {
+                                if (Navigator.canmove('left')) Navigator.move('left');
+                                else if (self.onLeft) self.onLeft();
+                            },
+                            down: function () { if (self.onDown) self.onDown(); },
+                            up: function () { if (self.onUp) self.onUp(); },
+                            back: function () { if (self.onBack) self.onBack(); }
+                        });
+                        Lampa.Controller.toggle('items_line');
+                    },
+                    render: function (js) {
+                        return js ? line[0] : line;
+                    },
+                    destroy: function () {
+                        hscroll.destroy();
+                        line.remove();
+                    }
+                };
+        
+                // вставка после «Подробно»
+                var main = e.link; // из Lampa.Listener.follow('full', ...)
                 var podrobno = $('.items-line').filter(function () {
                     return $(this).find('.items-line__title').text().trim() === 'Подробно';
                 });
+        
                 if (podrobno.length) podrobno.after(line);
                 else $('.full-start-new').after(line);
         
-                // в коллекцию фокуса
-                Lampa.Layer.update(line);
-                setTimeout(function () {
-                    var act = Lampa.Activity.active();
-                    if (act && act.activity && act.activity.render) {
-                        Lampa.Controller.collectionSet(act.activity.render());
+                // регистрация в Main.items
+                if (main && main.items) {
+                    // ищем индекс description
+                    var idx = -1;
+                    for (var i = 0; i < main.items.length; i++) {
+                        var r = main.items[i].render(true);
+                        if (r && $(r).find('.items-line__title').text().trim() === 'Подробно') {
+                            idx = i;
+                            break;
+                        }
                     }
-                    // докинуть карточки в текущую коллекцию
-                    cards.forEach(function (el) {
-                        Lampa.Controller.collectionAppend(el);
+                    // хуки как в Main.onAppend
+                    lineObj.use({
+                        onDown: main.emit ? main.emit.bind(main, 'down') : function () {},
+                        onUp: main.emit ? main.emit.bind(main, 'up') : function () {},
+                        onBack: main.emit ? main.emit.bind(main, 'back') : function () {},
+                        onLeft: main.emit ? main.emit.bind(main, 'left') : function () {},
+                        onActive: function () {
+                            main.active = main.items.indexOf(lineObj);
+                        },
+                        onToggle: function () {
+                            if (main.scroll) main.scroll.update(lineObj.render(true));
+                        }
                     });
-                }, 80);
+        
+                    if (idx >= 0) {
+                        main.items.splice(idx + 1, 0, lineObj);
+                    } else {
+                        main.items.push(lineObj);
+                    }
+                }
+        
+                Lampa.Layer.update(line);
             });
         }
     });
