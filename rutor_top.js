@@ -182,64 +182,87 @@
     function searchTMDB(torrentName, callback) {
         var key = torrentName.toLowerCase().slice(0, 120);
         var now = Date.now();
+    
+        // кеш
         if (getCacheEnabled() && cache[key] && (now - cache[key].ts) < CACHE_LIFE) {
             log.debug('cache hit', cleanTitle(torrentName));
             return callback(cache[key].card || null);
         }
+    
         var title = cleanTitle(torrentName);
         var year = getYear(torrentName);
         var lang = Lampa.Storage.get('tmdb_lang', 'ru') || 'ru';
         var isSeries = /\[[^\]]*\d[^\]]*\]/.test(torrentName);
         var endpoint = isSeries ? 'search/tv' : 'search/movie';
         var yearParam = isSeries ? 'first_air_date_year' : 'year';
-
-        log.debug('TMDB search', { title: title, year: year, lang: lang, raw: torrentName, isSeries: isSeries, endpoint: endpoint });
-
+    
+        log.debug('TMDB search', { title: title, year: year, lang: lang, raw: torrentName, isSeries: isSeries });
+    
         if (!title) {
             cache[key] = { ts: now, card: null };
             saveCache();
             return callback(null);
         }
-
+    
         var q = encodeURIComponent(title);
-        var apiUrl = Lampa.TMDB.api(
-            endpoint + '?query=' + q +
-            (year ? '&' + yearParam + '=' + year : '') +
-            '&language=' + lang +
-            '&api_key=' + Lampa.TMDB.key()
-        );
-
-        network.silent(apiUrl, function (json) {
-            var card = null;
-            if (json && json.results && json.results.length) {
-                card = json.results[0];
-                if (card) {
-                    card.source = SOURCE;
-                    card.media_type = isSeries ? 'tv' : 'movie';
-                    if (isSeries) {
-                        card.name = card.name || card.title;
-                        card.first_air_date = card.first_air_date || card.release_date;
-                    } else {
-                        card.title = card.title || card.name;
-                        card.release_date = card.release_date || card.first_air_date;
+    
+        // пробуем год, потом ±1 (часто на торрентах год анонса, на TMDB — релиза)
+        var years = year ? [year, String(+year - 1), String(+year + 1)] : [''];
+    
+        function tryYear(i) {
+            if (i >= years.length) {
+                log.debug('TMDB result', { query: title, year: year, found: null });
+                cache[key] = { ts: now, card: null };
+                saveCache();
+                return callback(null);
+            }
+    
+            var y = years[i];
+            var apiUrl = Lampa.TMDB.api(
+                endpoint + '?query=' + q +
+                (y ? '&' + yearParam + '=' + y : '') +
+                '&language=' + lang +
+                '&api_key=' + Lampa.TMDB.key()
+            );
+    
+            network.silent(apiUrl, function (json) {
+                var card = null;
+                if (json && json.results && json.results.length) {
+                    card = json.results[0];
+                    if (card) {
+                        card.source = SOURCE;
+                        card.media_type = isSeries ? 'tv' : 'movie';
+                        if (isSeries) {
+                            card.name = card.name || card.title;
+                            card.first_air_date = card.first_air_date || card.release_date;
+                        } else {
+                            card.title = card.title || card.name;
+                            card.release_date = card.release_date || card.first_air_date;
+                        }
                     }
                 }
-            }
-            log.debug('TMDB result', { query: title, year: year, found: card ? (card.title || card.name) : null, id: card ? card.id : null });
-            cache[key] = { ts: now, card: card };
-            var keys = Object.keys(cache);
-            if (keys.length > 700) {
-                keys.sort(function (a, b) { return cache[a].ts - cache[b].ts; });
-                keys.slice(0, keys.length - 500).forEach(function (k) { delete cache[k]; });
-            }
-            saveCache();
-            callback(card);
-        }, function () {
-            log.debug('TMDB result', { query: title, year: year, found: null });
-            cache[key] = { ts: now, card: null };
-            saveCache();
-            callback(null);
-        });
+    
+                if (card) {
+                    log.debug('TMDB result', { query: title, tried: y, found: card.title || card.name, id: card.id });
+                    cache[key] = { ts: now, card: card };
+                    // чистка старого кеша
+                    var keys = Object.keys(cache);
+                    if (keys.length > 700) {
+                        keys.sort(function (a, b) { return cache[a].ts - cache[b].ts; });
+                        keys.slice(0, keys.length - 500).forEach(function (k) { delete cache[k]; });
+                    }
+                    saveCache();
+                    return callback(card);
+                }
+    
+                // следующий год
+                tryYear(i + 1);
+            }, function () {
+                tryYear(i + 1);
+            });
+        }
+    
+        tryYear(0);
     }
 
     // ========== Improved Parser ==========
@@ -300,9 +323,10 @@
         torrents.forEach(function (t, idx) {
             searchTMDB(t.title, function (card) {
                 if (card) {
-                    card.rutor = t;
-                    var key = (card.id || '') + '_' + (card.media_type || 'movie');
+                    var key = t.magnet || t.title;
                     rutorDataCache[key] = t;
+                    card.rutor = t;
+                    card.rutorKey = key;
                     results[idx] = card;
                 }
                 left--;
@@ -514,7 +538,47 @@
                 '</div>'
             );
             row.on('hover:enter', function () {
-                openTorrent(t);
+                Lampa.Modal.open({
+                    title: Lampa.Utils.shortText(t.title, 60),
+                    html: $('<div></div>'),
+                    buttons: [
+                        {
+                            name: 'Смотреть',
+                            onSelect: function () {
+                                Lampa.Modal.close();
+                                openTorrent(t);
+                            }
+                        },
+                        {
+                            name: 'Открыть карточку',
+                            onSelect: function () {
+                                Lampa.Modal.close();
+                                searchTMDB(t.title, function (card) {
+                                    if (!card) {
+                                        Lampa.Noty.show('Карточка не найдена');
+                                        return;
+                                    }
+                                    card.rutor = t;
+                                    var key = (card.id || '') + '_' + (card.media_type || 'movie');
+                                    if (!rutorDataCache[key]) rutorDataCache[key] = [];
+                                    rutorDataCache[key].push(t);
+                                    Lampa.Activity.push({
+                                        url: '',
+                                        component: 'full',
+                                        id: card.id,
+                                        method: card.media_type === 'tv' ? 'tv' : 'movie',
+                                        card: card,
+                                        source: SOURCE
+                                    });
+                                });
+                            }
+                        }
+                    ],
+                    onBack: function () {
+                        Lampa.Modal.close();
+                        Lampa.Controller.toggle('content');
+                    }
+                });
             });
             row.on('hover:focus', function () {
                 last_focus = row;
@@ -603,7 +667,7 @@
         item.on('hover:enter', function () {
             if (getViewMode() === 'table') {
                 Lampa.Activity.push({
-                    title: 'Rutor Топ',
+                    title: 'Rutor топ',
                     component: 'rutor_table',
                     url: BASE + '/top',
                     page: 1,
@@ -611,7 +675,7 @@
                 });
             } else {
                 Lampa.Activity.push({
-                    title: 'Rutor Топ',
+                    title: 'Rutor топ',
                     component: 'category',
                     source: SOURCE,
                     page: 1
@@ -919,10 +983,10 @@
     Lampa.Listener.follow('full', function (e) {
         console.log('[Rutor] full event:', e.type, e);
         if (e.type !== 'complite') return;
-    
-        var card = e.data && e.data.movie ? e.data.movie : (Lampa.Activity.active().card || {});        
-        var key = (card.id || '') + '_' + (card.media_type || 'movie');
-        var t = card.rutor || rutorDataCache[key];
+
+        var card = e.data?.movie || Lampa.Activity.active().card || {};
+        var t = card.rutor || (card.rutorKey && rutorDataCache[card.rutorKey]);
+        
         console.log('[Rutor] full', {
             key: key,
             card: card,
